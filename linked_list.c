@@ -1,265 +1,162 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include "common.h"
 #include "linked_list.h"
-#include "list_iterator.h"
-#include <assert.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include "common.h"
 
-struct node
-{
-    elem_t val;   // holds current value
-    node_t *next; // points to the next entry (possibly NULL)
-};
 
-struct list
+static node_t *node_create(elem_t value)
 {
-    node_t *first; // points to the first entry (possibly NULL)
-    node_t *last;  // points to the last entry (possibly NULL)
-    int size;      // holds size of list
-};
-
-ioopm_list_t *ioopm_list_create(void)
-{
-    // allocate memory for linked list
-    return calloc(1, sizeof(ioopm_list_t));
+    node_t *node = malloc(sizeof(node_t));
+    node->value = value;
+    node->next = NULL;
+    return node;
 }
 
-/// @brief creates a node
-/// @param value value to insert
-/// @param next pointer to next node
-/// @return the created node
-static node_t *node_create(elem_t value, node_t *next)
+ioopm_list_t *ioopm_list_create()
 {
-    // allocate memory for node and assigns value, next
-    node_t *node = calloc(1, sizeof(node_t));
-    node->val = value;
-    node->next = next;
-    return node;
+    /// Using calloc to reset the memory to zero. Size is 0, first and last is NULL.
+    return calloc(1, sizeof(ioopm_list_t));
+
+}
+
+static void destroy_node(node_t *node)
+{
+    free(node);
+}
+
+static node_t **find_node(ioopm_list_t *list, size_t index)
+{
+    //Using a double pointer to avoid edge cases
+    node_t **current_node = &list->first;
+    for (size_t i = 0; i < index; i++)
+    {
+        current_node = &((*current_node)->next);
+    }
+
+    return current_node;
 }
 
 void ioopm_list_destroy(ioopm_list_t *list)
 {
-    node_t *curr = list->first;
-    // goes through the list and frees each node, and then free the list
-    while (curr != NULL)
+    size_t size = list->size;
+    node_t *node_first = list->first;
+
+    for (size_t i = 0; i < size; i++)
     {
-        node_t *new_curr = curr->next;
-        free(curr);
-        curr = new_curr;
+        //Save the pointer to the next node before we free the current one
+        node_t *next = node_first->next;
+        destroy_node(node_first);
+        node_first = next;
     }
     free(list);
 }
 
-/// @brief inserts node into empty list
-/// @param list the linked list
-/// @param value value to insert
-static void empty_insert(ioopm_list_t *list, elem_t value)
-{
-    node_t *node = node_create(value, NULL);
-    list->first = node;
-    list->last = node;
-    list->size += 1;
-}
-
 void ioopm_list_append(ioopm_list_t *list, elem_t value)
 {
-    // inserts a node if the list is empty
-    if (list->size == 0)
+    node_t *node = node_create(value);
+    
+    if (list->last == NULL)
     {
-        empty_insert(list, value);
+        list->first = node;
     }
-    // else inserts a node last in the list
+
     else
     {
-        node_t *node = node_create(value, NULL);
         list->last->next = node;
-        list->last = node;
-        list->size += 1;
     }
+    list->last = node;
+    list->size++;
 }
 
 void ioopm_list_prepend(ioopm_list_t *list, elem_t value)
 {
-    // inserts a node if the list is empty
-    if (list->size == 0)
+    node_t *node = node_create(value);
+    node->next = list->first;
+    list->first = node;
+
+    if (list->last == NULL)
     {
-        empty_insert(list, value);
+        list->last = node;
     }
-    // else inserts a node first in the list
-    else
-    {
-        list->first = node_create(value, list->first);
-        list->size += 1;
-    }
+    list->size++;
 }
 
 elem_t ioopm_list_head(ioopm_list_t *list)
 {
-    return list->first->val;
+    return list->first->value;
 }
+
 
 elem_t ioopm_list_last(ioopm_list_t *list)
 {
-    return list->last->val;
+    return list->last->value;
 }
 
-/// @brief returns the previous node
-/// @param list the linked list
-/// @param index position of current node
-/// @return the previous node to the index
-static node_t *find_previous_node(ioopm_list_t *list, int index)
+void ioopm_list_insert(ioopm_list_t *list, size_t index, elem_t value)
 {
-    int count = 0;
-    node_t *curr = list->first;
-    while (count < (index - 1))
+    /// Pointer to the pointer of the indexed node
+    node_t **node_at_index = find_node(list, index);
+
+    node_t *new_node = node_create(value);
+
+    /// Make the new node point to the indexed node
+    new_node->next = *node_at_index;
+
+    /// Set the pointer of the node at index to the new node. Same as setting previous_node->next = new_node
+    *node_at_index = new_node;
+
+    if (new_node->next == NULL)
     {
-        curr = curr->next;
-        count += 1;
+        list->last = new_node;
     }
-    return curr;
+    list->size++;
 }
 
-void ioopm_list_insert(ioopm_list_t *list, int index, elem_t value)
+elem_t ioopm_list_remove(ioopm_list_t *list, size_t index)
 {
-    node_t *prev = find_previous_node(list, index);
-    // inserts a node if the list is empty
-    if (list->size == 0)
+    node_t **pointer_to_node = find_node(list, index);
+    node_t *node_to_remove = *pointer_to_node;
+
+    //Change so the previous node points to the node after the removed one
+    *pointer_to_node = node_to_remove->next;
+    elem_t result = node_to_remove->value;
+
+    if (node_to_remove == list->last)
     {
-        empty_insert(list, value);
+        /// If the node is the last remaining element in the list, set last to NULL.
+        if (list->size == 1)
+        {
+            list->last = NULL;
+        }
+
+        /// If it's not, change the last node to the new last node.
+        else
+        {
+            list->last = *find_node(list, list->size - 2);
+        }
     }
-    // else if at the first node, inserts a node first in the list
-    else if (index == 0)
-    {
-        list->first = node_create(value, list->first);
-        list->size += 1;
-        return;
-    }
-    // else insert a node
-    else
-    {
-        prev->next = node_create(value, prev->next);
-        list->size += 1;
-    }
+
+    list->size--;
+    destroy_node(node_to_remove);
+    return result;
+    
 }
 
-elem_t ioopm_list_remove(ioopm_list_t *list, int index)
+elem_t ioopm_list_get(ioopm_list_t *list, size_t index)
 {
-    // cannot remove node if list is already empty
-    if (list->size == 0)
-    {
-        puts("EMPTY LIST");
-        return int_elem(-99);
-    }
-    // else if at the first node, removes the first node in the list and returns its value
-    else if (index == 0)
-    {
-        node_t *temp = list->first;
-        elem_t val = list->first->val;
-        list->first = list->first->next;
-        free(temp);
-        list->size -= 1;
-        return val;
-    }
-    // else if there is only one node in the list, free it and returns its value
-    else if (list->size == 1)
-    {
-        elem_t val = list->first->val;
-        free(list->first);
-        return val;
-    }
-    // else free the node and returns its value
-    elem_t val = int_elem(-1);
-    node_t *prev = find_previous_node(list, index);
-    val = prev->next->val;
-    node_t *temp = prev->next;
-    prev->next = temp->next;
-    free(temp);
-    list->size -= 1;
-    return val;
+    node_t **pointer_to_node = find_node(list, index);
+    node_t *node = *pointer_to_node;
+
+    elem_t result = node->value;
+    return result;
 }
 
-elem_t ioopm_list_get(ioopm_list_t *list, int index)
-{
-    // cannot get node if list is empty
-    if (list->size == 0)
-    {
-        puts("EMPTY LIST");
-        return int_elem(-99);
-    }
-    // if at the first node, get value
-    if (index == 0)
-    {
-        return list->first->val;
-    }
-    // get value at current node
-    node_t *prev = find_previous_node(list, index);
-    return prev->next->val;
-}
-
-int ioopm_list_size(ioopm_list_t *list)
+size_t ioopm_list_size(ioopm_list_t *list)
 {
     return list->size;
 }
 
 bool ioopm_list_is_empty(ioopm_list_t *list)
 {
-    return (list->first == NULL);
-}
-
-//////////////////////////////////////////////
-//////////// ITERATOR
-//////////////////////////////////////////////
-
-struct list_iterator
-{
-    ioopm_list_t *list;   // list to iterate over
-    node_t *current_node; // holds current node
-    int curr_index;       // holds current index position
-};
-
-ioopm_list_iterator_t *ioopm_list_iterator_create(ioopm_list_t *l)
-{
-    // allocate memory for iterator and assigns list l, current node
-    ioopm_list_iterator_t *iter = calloc(1, sizeof(ioopm_list_iterator_t));
-    iter->list = l;
-    iter->current_node = l->first;
-    return iter;
-}
-
-void ioopm_list_iterator_destroy(ioopm_list_iterator_t *iter)
-{
-    free(iter);
-}
-
-bool ioopm_list_iterator_at_end(ioopm_list_iterator_t *iter)
-{
-    return (iter->current_node == NULL);
-}
-
-void ioopm_list_iterator_advance(ioopm_list_iterator_t *iter)
-{
-    iter->current_node = iter->current_node->next;
-    iter->curr_index += 1;
-}
-
-elem_t ioopm_list_iterator_current(ioopm_list_iterator_t *iter)
-{
-    return iter->current_node->val;
-}
-
-elem_t ioopm_list_iterator_remove(ioopm_list_iterator_t *iter)
-{
-    return ioopm_list_remove(iter->list, iter->curr_index);
-}
-
-void ioopm_list_iterator_insert(ioopm_list_iterator_t *iter, elem_t element)
-{
-    // inserts node with value element into current index in list
-    ioopm_list_insert(iter->list, iter->curr_index, element);
-    // updates the current node in the iterator
-    iter->current_node = find_previous_node(iter->list, iter->curr_index + 1);
-    if (iter->list->size == 1)
-    {
-        iter->current_node = iter->list->first;
-    }
+    return list->size == 0;
 }
