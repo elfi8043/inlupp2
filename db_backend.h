@@ -59,7 +59,7 @@ db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch);
 
 /// @brief prints the name and location of all merch in the warehouse 20 at a time
 /// @param ht_n_i a pointer to a ht mapping item name -> item*
-db_status_t db_list_merch(ioopm_hash_table_t *ht_n_i);
+void db_list_merch(ioopm_hash_table_t *ht_n_i);
 
 /// @brief removes an item from the warehouse entirely, including all its stock
 /// @param ht_n_i a pointer to a ht mapping item name -> item*
@@ -117,3 +117,5 @@ db_status_t db_calculate_cost(cart_t *cart);
 /// @param cart the cart to checkout
 /// @param ht_sl_n a pointer to ht mapping storage location-> name of stored item
 db_status_t db_checkout(cart_t *cart, ioopm_hash_table_t ht_sl_n);
+
+void db_ht_destroy(ioopm_hash_table_t *ht_n_i);

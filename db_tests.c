@@ -4,6 +4,7 @@
 #include "hash_table.h"
 #include "linked_list.h"
 #include "list_iterator.h"
+#include <stdlib.h>
 
 int init_suite(void) {
   // Change this function if you want to do something *before* you
@@ -29,10 +30,12 @@ void test_add_merch(void) {
   CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_OK);
   elem_t result = int_elem(-1);
   CU_ASSERT_TRUE(ioopm_hash_table_has_key(ht_n_i, string_elem(name)));
+  CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_MERCH_EXISTS);
+  db_ht_destroy(ht_n_i);
 }
 
-void test2(void) {
-  CU_ASSERT_EQUAL(1 + 1, 2);
+void test_list_merch(void) {
+  
 }
 
 int main() {
