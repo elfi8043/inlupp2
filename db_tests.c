@@ -35,7 +35,55 @@ void test_add_merch(void) {
 }
 
 void test_list_merch(void) {
+  ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
   
+  char *names[25] = {
+      "Jonkanon", "Dunderboj", "Skrammelmina", "Drakskold",
+      "Blixtsvard", "Jarnhammare", "Trollstav", "Isyxa",
+      "Eldlans", "Skogsdolk", "Stormbage", "Kopparskold",
+      "Runsten", "Silverring", "Guldhalsband", "Laderhuva",
+      "Jarnrustning", "Reseryggsack", "Faltkompass", "Rep",
+      "Lykta", "Tandstal", "Vattenflaska", "Matkittel",
+      "Lagerfilt"
+  };
+  
+  char *descriptions[25] = {
+      "Kanon som skjuter jon",
+      "Explosiv boj for sjostrid",
+      "Mina som skramlar vid kontakt",
+      "Skold tillverkad av drakfjall",
+      "Svärd som kanaliserar blixtar",
+      "Tung hammare av jarn",
+      "Stav med magiska runor",
+      "Yxa som aldrig slutar vara kall",
+      "Lans med en brinnande spets",
+      "Liten dolk for skogsbruk",
+      "Bage som skjuter med stormens kraft",
+      "Skold av hamrad koppar",
+      "Sten med urgamla runor",
+      "Ring av rent silver",
+      "Halsband av polerat guld",
+      "Hu va av slitstarkt lader",
+      "Rustning av smitt jarn",
+      "Ryggsack for langa resor",
+      "Kompass for navigering i falt",
+      "Starkt rep for klattring",
+      "Lykta for morka natter",
+      "Verktyg for att gora upp eld",
+      "Flaska for att forvara vatten",
+      "Kittel for matlagning over oppen eld",
+      "Filt for kalla natter i lager"
+  };
+  
+  int prices[25] = {
+      15000, 8500, 3200, 12000, 9500,
+      4500, 7000, 2800, 5500, 1800,
+      6500, 3500, 2200, 1800, 4200,
+      1200, 18000, 900, 750, 300,
+      650, 250, 200, 1100, 500
+  };
+  
+
 }
 
 int main() {
