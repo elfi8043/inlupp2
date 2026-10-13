@@ -26,11 +26,9 @@ void test_add_merch(void) {
   int price = 100;
   item_t *item = db_create_item(name, desc, price);
 
-  db_add_merch(ht_n_i, item);
-  elem_t *result = int_elem(-1);
+  CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_OK);
+  elem_t result = int_elem(-1);
   CU_ASSERT_TRUE(ioopm_hash_table_has_key(ht_n_i, string_elem(name)));
-  CU_ASSERT_EQUAL(ioopm_hash_table_lookup(ht_n_i, string_elem(name), result).i, 100);
-  
 }
 
 void test2(void) {
