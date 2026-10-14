@@ -18,24 +18,8 @@ int clean_suite(void) {
   return 0;
 }
 
-// These are example test functions. You should replace them with
-// functions of your own.
-void test_add_merch(void) {
-  ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
-  char *name = "Jonkanon";
-  char *desc = "Kanon som skjuter jon";
-  int price = 100;
-  item_t *item = db_create_item(name, desc, price);
 
-  CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_OK);
-  elem_t result = int_elem(-1);
-  CU_ASSERT_TRUE(ioopm_hash_table_has_key(ht_n_i, string_elem(name)));
-  CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_MERCH_EXISTS);
-  db_ht_destroy(ht_n_i);
-}
-
-void test_list_merch(void) {
-  ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+void add_sample_merch_to_db(ioopm_hash_table_t *ht_n_i) {
   
   char *names[25] = {
       "Jonkanon", "Dunderboj", "Skrammelmina", "Drakskold",
@@ -82,12 +66,43 @@ void test_list_merch(void) {
       1200, 18000, 900, 750, 300,
       650, 250, 200, 1100, 500
   };
-  
 
+  for (int i = 0; i < 25; i++)
+  {
+    db_add_merch(ht_n_i, db_create_item(names[i], descriptions[i], prices[i]));
+  }
+}
+
+void test_add_merch(void) {
+  ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+  char *name = "Jonkanon";
+  char *desc = "Kanon som skjuter jon";
+  int price = 100;
+  item_t *item = db_create_item(name, desc, price);
+
+  CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_OK);
+  elem_t result = int_elem(-1);
+  CU_ASSERT_TRUE(ioopm_hash_table_has_key(ht_n_i, string_elem(name)));
+  CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_MERCH_EXISTS);
+  db_ht_destroy(ht_n_i);
+}
+
+void test_replenish(void)
+{
+  ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+  ioopm_hash_table_t *ht_sl_n = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+
+  add_sample_merch_to_db(ht_n_i);
+  //CU_ASSERT_EQUAL(db_replenish(ht_n_i, ht_sl_n, "Runsten", 10, "a10"), DB_OK);
+  
+  item_t *holder = db_create_holder();
+  CU_ASSERT_EQUAL(db_get_item(ht_n_i, "Runsten", holder), DB_OK);
+  //char *sl = ioopm_list_get(holder->l, 0).s;
+  //CU_ASSERT_EQUAL(strcmp(sl, "a10"), 0);
 }
 
 int main() {
-  // First we try to set up CUnit, and exit if we fail
+  // First we try to set up CUnit and exit if we fail
   if (CU_initialize_registry() != CUE_SUCCESS)
     return CU_get_error();
 
@@ -107,7 +122,7 @@ int main() {
   // copy a line below and change the information
   if (
     (CU_add_test(my_test_suite, "Add merch", test_add_merch) == NULL) ||
-    (CU_add_test(my_test_suite, "Basic arithmetics", test2) == NULL) ||
+    (CU_add_test(my_test_suite, "Replenish merch", test_replenish) == NULL) ||
     0
   )
     {

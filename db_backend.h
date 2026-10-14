@@ -61,6 +61,9 @@ db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch);
 /// @param ht_n_i a pointer to a ht mapping item name -> item*
 void db_list_merch(ioopm_hash_table_t *ht_n_i);
 
+db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t *holder);
+item_t *db_create_holder(void);
+
 /// @brief removes an item from the warehouse entirely, including all its stock
 /// @param ht_n_i a pointer to a ht mapping item name -> item*
 /// @param ht_sl_n a pointer to ht mapping storage location-> name of stored item
@@ -86,7 +89,7 @@ db_status_t db_show_stock(item_t *item);
 /// @param quant the amount to increase quantity with
 /// @param sl the name of the storage location in which to store in
 /// @note we only replenish if the merch actually exists in the inventory
-db_status_t db_replenish(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, item_t *item, int quant, char *sl);
+db_status_t db_replenish(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, char *name, int quant, char *sl);
 
 /// @brief creates an empty cart
 /// @param no_carts a pointer to a variable keeping track of how many carts there are
