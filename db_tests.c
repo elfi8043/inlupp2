@@ -81,7 +81,6 @@ void test_add_merch(void) {
   item_t *item = db_create_item(name, desc, price);
 
   CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_OK);
-  elem_t result = int_elem(-1);
   CU_ASSERT_TRUE(ioopm_hash_table_has_key(ht_n_i, string_elem(name)));
   CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_MERCH_EXISTS);
   db_ht_destroy(ht_n_i);
@@ -93,12 +92,12 @@ void test_replenish(void)
   ioopm_hash_table_t *ht_sl_n = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
 
   add_sample_merch_to_db(ht_n_i);
-  //CU_ASSERT_EQUAL(db_replenish(ht_n_i, ht_sl_n, "Runsten", 10, "a10"), DB_OK);
+  CU_ASSERT_EQUAL(db_replenish(ht_n_i, ht_sl_n, "Runsten", 10, "a10"), DB_OK);
   
   item_t *holder = db_create_holder();
   CU_ASSERT_EQUAL(db_get_item(ht_n_i, "Runsten", holder), DB_OK);
-  //char *sl = ioopm_list_get(holder->l, 0).s;
-  //CU_ASSERT_EQUAL(strcmp(sl, "a10"), 0);
+  char *sl = ioopm_list_get(holder->l, 0).s;
+  CU_ASSERT_EQUAL(strcmp(sl, "a10"), 0);
 }
 
 int main() {

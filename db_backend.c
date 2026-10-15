@@ -6,6 +6,7 @@
 #include "stdlib.h"
 #include "db_backend.h"
 #include <stdbool.h>
+#include <string.h>
 
 item_t *db_create_item(char *name, char *desc, int price)
 {
@@ -17,11 +18,12 @@ item_t *db_create_item(char *name, char *desc, int price)
     return item;
 }
 
-stock_entry_t *db_create_stock_entry(sl, quant)
+stock_entry_t *db_create_stock_entry(char *sl, int quant)
 {
     stock_entry_t *entry = calloc(1, sizeof(stock_entry_t));
     entry->sl = sl;
     entry->quant = quant;
+    return entry;
 }
 
 db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch)
@@ -48,42 +50,67 @@ db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t *holder)
 
 static void item_replenish(item_t *item, char *sl, int quant, bool exists)
 {
-    ioopm_list_t *ll = holder->l;
+    ioopm_list_t *ll = item->l;
     if (exists) // sl is in list meaning we have to find it
     {
         ioopm_list_iterator_t *iter = ioopm_list_iterator_create(ll);
-        while (!ioopm_hash_table_iterator_at_end(iter))
+        while (!ioopm_list_iterator_at_end(iter))
         {
-            curr = ioopm_list_iterator_current_value(iter);
-            
+            stock_entry_t *curr = ioopm_list_iterator_current(iter).p;
+            while (!ioopm_list_iterator_at_end(iter))
+            {
+                if (strcmp(curr->sl, sl) == 0)
+                {
+                    // this sl needs to be updated
+                    curr->quant += quant;
+                }
+                // else look for next node
+                ioopm_list_iterator_advance(iter);
+                curr = ioopm_list_iterator_current(iter).p;
+            }
         }
+    }
+    else //sl does not exist in list we just append
+    {
+        stock_entry_t *stock_entry = db_create_stock_entry(sl, quant);
+        ioopm_list_append(ll, ptr_elem(stock_entry));
     }
 
 }
 
 db_status_t db_replenish(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, char *name, int quant, char *sl)
 {
-    //update the items list
-    
-    // 1, get the item from db
     item_t *holder = db_create_holder();
+    // Check if merch exists
     if(db_get_item(ht_n_i, name, holder) == DB_OK)
     {
-        char *res;
-        //2. check if sl in use
-        if (ioopm_hash_table_lookup(ht_sl_n, string_elem(sl), string_elem(res)))
+        char *res = NULL;
+        // check if sl in use
+        if (ioopm_hash_table_lookup(ht_sl_n, string_elem(sl), &string_elem(res)))
         {
             // If sl in use we check if it is in use by the same item
             if (strcmp(res, name) == 0)
             {
                 // if in use by same item we replenish
                 item_replenish(holder, sl, quant, true);
+                return DB_OK;
+            }
+            else 
+            {
+                return DB_LOCATION_TAKEN;
             }
         }
-
-        
-        // add it to ht_sl_n
+        else // else we add sl to ht_sl_n and update the item 
+        {
+            ioopm_hash_table_insert(ht_sl_n, string_elem(name), string_elem(sl));
+            item_replenish(holder, sl, quant, false);
+            return DB_OK;
+        }
     } 
+    else 
+    {
+        return DB_NO_SUCH_MERCH;
+    }
 
 }
 
