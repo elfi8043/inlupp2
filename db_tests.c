@@ -93,7 +93,7 @@ void test_replenish(void)
 
   add_sample_merch_to_db(ht_n_i);
   CU_ASSERT_EQUAL(db_replenish(ht_n_i, ht_sl_n, "Runsten", 10, "a10"), DB_OK);
-  
+  puts("i am here!");
   item_t *holder = db_create_holder();
   CU_ASSERT_EQUAL(db_get_item(ht_n_i, "Runsten", holder), DB_OK);
   char *sl = ioopm_list_get(holder->l, 0).s;

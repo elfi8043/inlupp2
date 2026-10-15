@@ -1,42 +1,49 @@
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include "common.h"
 #include "linked_list.h"
 #include "list_iterator.h"
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <assert.h>
 
 struct list_iterator
 {
-    node_t *current_node;
+  ioopm_list_t *list;
+  size_t steps;
+  node_t *current_node;
+  size_t size;
 };
 
 ioopm_list_iterator_t *ioopm_list_iterator_create(ioopm_list_t *l)
 {
-    return calloc(1, sizeof(ioopm_list_iterator_t));
+    ioopm_list_iterator_t *iter = malloc(sizeof(ioopm_list_iterator_t));
+    iter->list = l;
+    iter->current_node = l->first;
+    iter->steps = 0;
+    iter->size = ioopm_list_size(l);
+    return iter;
 }
 
-void ioopm_list_iterator_destroy(ioopm_list_iterator_t *iter);
+
+void ioopm_list_iterator_destroy(ioopm_list_iterator_t *iter)
 {
     free(iter);
 }
 
 bool ioopm_list_iterator_at_end(ioopm_list_iterator_t *iter)
 {
-    return (iter->current_node->next = NULL);
+    if (iter->steps == iter->size) return true;
+    else return false;
 }
 
-void ioopm_list_iterator_advance(ioopm_list_iterator_t *iter);
+void ioopm_list_iterator_advance(ioopm_list_iterator_t *iter)
+{
+    node_t *next = iter->current_node->next;
+    iter->current_node = next;
+    iter->steps++;
+}
 
-int ioopm_list_iterator_current(ioopm_list_iterator_t *iter);
-
-/// NOTE: REMOVE IS OPTIONAL TO IMPLEMENT
-/// @brief Remove the current element from the underlying list
-/// @param iter the iterator
-/// @return the removed element
-int ioopm_list_iterator_remove(ioopm_list_iterator_t *iter);
-
-/// NOTE: INSERT IS OPTIONAL TO IMPLEMENT
-/// @brief Insert a new element into the underlying list making the current element it's next
-/// @param iter the iterator
-/// @param element the element to be inserted
-void ioopm_list_iterator_insert(ioopm_list_iterator_t *iter, int element);
+elem_t ioopm_list_iterator_current(ioopm_list_iterator_t *iter)
+{
+    return iter->current_node->value;
+}
