@@ -93,10 +93,11 @@ void test_replenish(void)
 
   add_sample_merch_to_db(ht_n_i);
 
-  item_t *res = db_create_holder();
-  if (ioopm_hash_table_lookup(ht_n_i, string_elem("Runsten"), &ptr_elem(res)))
+  elem_t res;
+  if (ioopm_hash_table_lookup(ht_n_i, string_elem("Runsten"), &res))
   {
-    printf("%s, %s, %d", res->name, res->desc, res->price);
+    item_t *item = res.p;
+    printf("%s, %s, %d", item->name, item->desc, item->price);
   }
 
   CU_ASSERT_EQUAL(db_replenish(ht_n_i, ht_sl_n, "Runsten", 10, "a10"), DB_OK);
