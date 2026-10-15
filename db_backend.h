@@ -61,8 +61,7 @@ db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch);
 /// @param ht_n_i a pointer to a ht mapping item name -> item*
 void db_list_merch(ioopm_hash_table_t *ht_n_i);
 
-db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t *holder);
-item_t *db_create_holder(void);
+db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t **result);
 
 /// @brief removes an item from the warehouse entirely, including all its stock
 /// @param ht_n_i a pointer to a ht mapping item name -> item*

@@ -38,91 +38,83 @@ db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch)
     return DB_OK;
 }
 
-db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t *holder)
+db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t **result)
 {
-    if(ioopm_hash_table_lookup(ht_n_i, string_elem(name), &ptr_elem(holder)))
+    elem_t holder;
+
+    if (ioopm_hash_table_lookup(ht_n_i, string_elem(name), &holder))
     {
-        printf("%s", holder->name);
+        *result = holder.p;
         return DB_OK;
-    } else
+    }
+    else
     {
         return DB_NO_SUCH_MERCH;
     }
-
 }
 
 static void item_replenish(item_t *item, char *sl, int quant, bool exists)
 {
 
     ioopm_list_t *ll = item->l;
-    ioopm_list_is_empty(ll);
     if (exists) // sl is in list meaning we have to find it
     {
         ioopm_list_iterator_t *iter = ioopm_list_iterator_create(ll);
         stock_entry_t *curr = ioopm_list_iterator_current(iter).p;
         while (!ioopm_list_iterator_at_end(iter))
         {
-            puts("I am in the loop!");
+            curr = ioopm_list_iterator_current(iter).p;
             if (strcmp(curr->sl, sl) == 0)
             {
                 // this sl needs to be updated
                 curr->quant += quant;
+                break;
             }
             // else look for next node
             ioopm_list_iterator_advance(iter);
-            curr = ioopm_list_iterator_current(iter).p;
         }
+        ioopm_list_iterator_destroy(iter);
     }
     else //sl does not exist in list we just append
     {
-        puts("Hello?");
         stock_entry_t *stock_entry = db_create_stock_entry(sl, quant);
         ioopm_list_append(ll, ptr_elem(stock_entry));
-        puts("hellooo?");
     }
 }
 
-item_t *db_create_holder(void)
+db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
+                         ioopm_hash_table_t *ht_sl_n,
+                         char *name, int quant, char *sl)
 {
-    return calloc(1, sizeof(item_t));
-}
+    item_t *holder = NULL;
 
-db_status_t db_replenish(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, char *name, int quant, char *sl)
-{
-    item_t *holder = db_create_holder();
-    // Check if merch exists
-    if(db_get_item(ht_n_i, name, holder) == DB_OK)
-    {
-        puts("I am in the if statement");
-        char *res = NULL;
-        // check if sl in use
-        if (ioopm_hash_table_lookup(ht_sl_n, string_elem(sl), &string_elem(res)))
-        {
-            // If sl in use we check if it is in use by the same item
-            if (strcmp(res, name) == 0)
-            {
-                // if in use by same item we replenish
-                item_replenish(holder, sl, quant, true);
-                return DB_OK;
-            }
-            else 
-            {
-                return DB_LOCATION_TAKEN;
-            }
-        }
-        else // else we add sl to ht_sl_n and update the item 
-        {
-            ioopm_hash_table_insert(ht_sl_n, string_elem(name), string_elem(sl));
-            puts("I am in the else statement!");
-            item_replenish(holder, sl, quant, false);
-            return DB_OK;
-        }
-    } 
-    else 
+    if (db_get_item(ht_n_i, name, &holder) != DB_OK)
     {
         return DB_NO_SUCH_MERCH;
     }
 
+    elem_t res;
+
+    if (ioopm_hash_table_lookup(ht_sl_n, string_elem(sl), &res))
+    {
+        char *item_name = res.s;
+
+        if (strcmp(item_name, name) == 0)
+        {
+            item_replenish(holder, sl, quant, true);
+            return DB_OK;
+        }
+        else
+        {
+            return DB_LOCATION_TAKEN;
+        }
+    }
+    else
+    {
+        ioopm_hash_table_insert(ht_sl_n, string_elem(sl), string_elem(name));
+        item_replenish(holder, sl, quant, false);
+        return DB_OK;
+    }
 }
 
 void db_ht_destroy(ioopm_hash_table_t *ht)
