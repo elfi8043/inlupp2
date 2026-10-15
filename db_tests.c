@@ -92,6 +92,13 @@ void test_replenish(void)
   ioopm_hash_table_t *ht_sl_n = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
 
   add_sample_merch_to_db(ht_n_i);
+
+  item_t *res = db_create_holder();
+  if (ioopm_hash_table_lookup(ht_n_i, string_elem("Runsten"), &ptr_elem(res)))
+  {
+    printf("%s, %s, %d", res->name, res->desc, res->price);
+  }
+
   CU_ASSERT_EQUAL(db_replenish(ht_n_i, ht_sl_n, "Runsten", 10, "a10"), DB_OK);
   puts("i am here!");
   item_t *holder = db_create_holder();

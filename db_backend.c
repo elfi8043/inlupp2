@@ -39,7 +39,7 @@ db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch)
 
 db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t *holder)
 {
-    if(ioopm_hash_table_lookup(ht_n_i, string_elem(name), ptr_elem(holder)))
+    if(ioopm_hash_table_lookup(ht_n_i, string_elem(name), &ptr_elem(holder)))
     {
         printf("%s", holder->name);
         return DB_OK;
