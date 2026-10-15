@@ -13,8 +13,8 @@
 item_t *db_create_item(char *name, char *desc, int price)
 {
     item_t *item = calloc(1, sizeof(item_t));
-    item->name = name;
-    item->desc = desc;
+    item->name = strdup(name);
+    item->desc = strdup(desc);
     item->price = price;
     item->l = ioopm_list_create();
     return item;
@@ -23,7 +23,7 @@ item_t *db_create_item(char *name, char *desc, int price)
 stock_entry_t *db_create_stock_entry(char *sl, int quant)
 {
     stock_entry_t *entry = calloc(1, sizeof(stock_entry_t));
-    entry->sl = sl;
+    entry->sl = strdup(sl);
     entry->quant = quant;
     return entry;
 }
@@ -53,33 +53,25 @@ db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t **result)
     }
 }
 
-static void item_replenish(item_t *item, char *sl, int quant, bool exists)
+static void item_replenish(item_t *item, char *sl, int quant)
 {
 
     ioopm_list_t *ll = item->l;
-    if (exists) // sl is in list meaning we have to find it
+    ioopm_list_iterator_t *iter = ioopm_list_iterator_create(ll);
+    
+    while (!ioopm_list_iterator_at_end(iter))
     {
-        ioopm_list_iterator_t *iter = ioopm_list_iterator_create(ll);
         stock_entry_t *curr = ioopm_list_iterator_current(iter).p;
-        while (!ioopm_list_iterator_at_end(iter))
+        if (strcmp(curr->sl, sl) == 0)
         {
-            curr = ioopm_list_iterator_current(iter).p;
-            if (strcmp(curr->sl, sl) == 0)
-            {
-                // this sl needs to be updated
-                curr->quant += quant;
-                break;
-            }
-            // else look for next node
-            ioopm_list_iterator_advance(iter);
+            // this sl needs to be updated
+            curr->quant += quant;
+            break;
         }
-        ioopm_list_iterator_destroy(iter);
+        // else look for next node
+        ioopm_list_iterator_advance(iter);
     }
-    else //sl does not exist in list we just append
-    {
-        stock_entry_t *stock_entry = db_create_stock_entry(sl, quant);
-        ioopm_list_append(ll, ptr_elem(stock_entry));
-    }
+    ioopm_list_iterator_destroy(iter);
 }
 
 db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
@@ -99,9 +91,10 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
     {
         char *item_name = res.s;
 
-        if (strcmp(item_name, name) == 0)
+        // Använder name från backend ist
+        if (strcmp(item_name, holder->name) == 0)
         {
-            item_replenish(holder, sl, quant, true);
+            item_replenish(holder, sl, quant);
             return DB_OK;
         }
         else
@@ -111,8 +104,11 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
     }
     else
     {
-        ioopm_hash_table_insert(ht_sl_n, string_elem(sl), string_elem(name));
-        item_replenish(holder, sl, quant, false);
+        // Skapar ny entry för att ge ägarskap till item
+        stock_entry_t *entry = db_create_stock_entry(sl, quant);
+        ioopm_list_append(holder->l, ptr_elem(entry));
+        // entry->sl ist för sl då sl frigörs i front end
+        ioopm_hash_table_insert(ht_sl_n, string_elem(entry->sl), string_elem(holder->name));
         return DB_OK;
     }
 }

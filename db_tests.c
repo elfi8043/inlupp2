@@ -103,6 +103,29 @@ void test_replenish(void)
   CU_ASSERT_EQUAL(strcmp(sl, "a10"), 0);
 }
 
+void test_add_merch_survives_caller_free(void)
+{
+    ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+ 
+    char *name = strdup("Bralla");      
+    char *desc = strdup("Balla");
+    item_t *item = db_create_item(name, desc, 20);
+    CU_ASSERT_EQUAL(db_add_merch(ht_n_i, item), DB_OK);
+
+    // Acts as frontend
+    free(name);                            
+    free(desc);
+    char *junk = strdup("XXXXXX");          
+ 
+    item_t *found = NULL;
+    CU_ASSERT_EQUAL(db_get_item(ht_n_i, "Bralla", &found), DB_OK);
+    CU_ASSERT_PTR_EQUAL(found, item);
+    CU_ASSERT_STRING_EQUAL(item->name, "Bralla");
+ 
+    free(junk);
+    db_ht_destroy(ht_n_i);
+}
+
 int main() {
   // First we try to set up CUnit and exit if we fail
   if (CU_initialize_registry() != CUE_SUCCESS)
@@ -125,6 +148,7 @@ int main() {
   if (
     (CU_add_test(my_test_suite, "Add merch", test_add_merch) == NULL) ||
     (CU_add_test(my_test_suite, "Replenish merch", test_replenish) == NULL) ||
+    (CU_add_test(my_test_suite, "Dangling pointer", test_add_merch_survives_caller_free) == NULL) ||
     0
   )
     {
