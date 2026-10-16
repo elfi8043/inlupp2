@@ -55,6 +55,7 @@ db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t **result)
 
 static void item_replenish(item_t *item, char *sl, int quant)
 {
+    // tog bort if sats då det bara fanns ett case kvar
 
     ioopm_list_t *ll = item->l;
     ioopm_list_iterator_t *iter = ioopm_list_iterator_create(ll);
@@ -111,6 +112,30 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
         ioopm_hash_table_insert(ht_sl_n, string_elem(entry->sl), string_elem(holder->name));
         return DB_OK;
     }
+}
+
+db_status_t db_remove_merch(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, char *name)
+{
+    elem_t removed;
+    if (!ioopm_hash_table_remove(ht_n_i, string_elem(name), &removed))
+    {
+        return DB_NO_SUCH_MERCH;
+    }
+
+    item_t *item = removed.p;
+
+    ioopm_list_iterator_t *it = ioopm_list_iterator_create(item->l);
+    while (!ioopm_list_iterator_at_end(it))
+    {
+        /* code */
+        stock_entry_t *curr = ioopm_list_iterator_current(it).p;
+        elem_t res;
+        ioopm_hash_table_remove(ht_sl_n, string_elem(curr->sl), &res);
+        ioopm_list_iterator_advance(it);
+    }
+    ioopm_list_destroy(it);
+    return DB_OK;
+
 }
 
 void db_ht_destroy(ioopm_hash_table_t *ht)
