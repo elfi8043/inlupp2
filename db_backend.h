@@ -57,6 +57,10 @@ item_t *db_create_item(char *name, char *desc, int price);
 /// @param merch a pointer to the item to insert
 db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch);
 
+
+
+// borde vara i frontend
+
 /// @brief prints the name and location of all merch in the warehouse 20 at a time
 /// @param ht_n_i a pointer to a ht mapping item name -> item*
 void db_list_merch(ioopm_hash_table_t *ht_n_i);
@@ -75,7 +79,9 @@ db_status_t db_remove_merch(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_s
 /// @param merch a pointer to a newly created merch item.
 /// @note this function should be used in conjunction with a function that 
 // creates an edited copy of an existing item, removes it and inserts a new one
-db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i, item_t *merch);
+db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i, char *old_name, char *name, char *desc, int price);
+
+//borde vara i frontend
 
 /// @brief list all storage locations, quantity for a particular merch
 /// @param name name of item to show stock for
