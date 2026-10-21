@@ -186,42 +186,33 @@ bool ioopm_hash_table_lookup(ioopm_hash_table_t *ht, elem_t key, elem_t *result)
     }
 }
 
-bool ioopm_hash_table_remove(ioopm_hash_table_t *ht, elem_t key, elem_t *result)
+bool ioopm_hash_table_remove(ioopm_hash_table_t *ht,
+                             elem_t key,
+                             elem_t *removed_key,
+                             elem_t *removed_value)
 {
-    // find previous entry, or the last entry if the key does not exist
     entry_t *previous = find_previous_entry(ht, key);
 
-    // returns false if current entry is NULL (when previous is the last entry)
     if (previous->next == NULL)
     {
         return false;
     }
-    // check if current entrys key is the one we are looking for
+
     if (ht->eq_fn(previous->next->key, key))
     {
-        // gives result the current value to be removed
-        *result = previous->next->value;
-        // removes current entry if at end of list
-        if (previous->next->next == NULL)
-        {
-            entry_t *temp = previous->next;
-            previous->next = NULL;
-            free(temp);
-        }
-        // else update current entry and then remove the previous current entry
-        else
-        {
-            entry_t *temp = previous->next;
-            previous->next = previous->next->next;
-            free(temp);
-        }
+        entry_t *temp = previous->next;
+
+        *removed_key = temp->key;
+        *removed_value = temp->value;
+
+        previous->next = temp->next;
+        free(temp);
+
         ht->size -= 1;
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 bool ioopm_hash_table_has_key(ioopm_hash_table_t *ht, elem_t key)

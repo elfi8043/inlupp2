@@ -57,14 +57,6 @@ item_t *db_create_item(char *name, char *desc, int price);
 /// @param merch a pointer to the item to insert
 db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch);
 
-
-
-// borde vara i frontend
-
-/// @brief prints the name and location of all merch in the warehouse 20 at a time
-/// @param ht_n_i a pointer to a ht mapping item name -> item*
-void db_list_merch(ioopm_hash_table_t *ht_n_i);
-
 db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t **result);
 
 /// @brief removes an item from the warehouse entirely, including all its stock
@@ -79,13 +71,7 @@ db_status_t db_remove_merch(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_s
 /// @param merch a pointer to a newly created merch item.
 /// @note this function should be used in conjunction with a function that 
 // creates an edited copy of an existing item, removes it and inserts a new one
-db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i, char *old_name, char *name, char *desc, int price);
-
-//borde vara i frontend
-
-/// @brief list all storage locations, quantity for a particular merch
-/// @param name name of item to show stock for
-db_status_t db_show_stock(item_t *item);
+db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, char *old_name, char *name, char *desc, int price);
 
 /// @brief increase the stock of a merch by at least one
 /// @param ht_n_i a pointer to a ht mapping item name -> item*
@@ -99,10 +85,10 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n
 /// @brief creates an empty cart
 /// @param no_carts a pointer to a variable keeping track of how many carts there are
 /// @returns a pointer to the newly created cart
-int db_create_cart(int *no_carts); 
+cart_t *db_create_cart(int *no_carts); 
 
 /// @brief removes a cart from the system
-/// @param id poitner to the cart to remove
+/// @param cart poitner to the cart to remove
 db_status_t db_remove_cart(cart_t *cart);
 
 /// @brief adds a quantity of an item to a cart
@@ -126,4 +112,4 @@ db_status_t db_calculate_cost(cart_t *cart);
 /// @param ht_sl_n a pointer to ht mapping storage location-> name of stored item
 db_status_t db_checkout(cart_t *cart, ioopm_hash_table_t ht_sl_n);
 
-void db_ht_destroy(ioopm_hash_table_t *ht_n_i);
+void db_ht_destroy(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n);

@@ -24,7 +24,7 @@ static void destroy_node(node_t *node)
     free(node);
 }
 
-static node_t **find_node(ioopm_list_t *list, size_t index)
+node_t **find_node(ioopm_list_t *list, size_t index)
 {
     //Using a double pointer to avoid edge cases
     node_t **current_node = &list->first;

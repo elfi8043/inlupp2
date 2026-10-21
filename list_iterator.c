@@ -47,3 +47,27 @@ elem_t ioopm_list_iterator_current(ioopm_list_iterator_t *iter)
 {
     return iter->current_node->value;
 }
+
+elem_t ioopm_list_iterator_remove(ioopm_list_iterator_t *iter)
+{
+    node_t *next = iter->current_node->next;
+    elem_t result = ioopm_list_remove(iter->list, iter->steps);
+
+    iter->current_node = next;
+    iter->size--;
+
+    return result;
+}
+
+void ioopm_list_iterator_insert(ioopm_list_iterator_t *iter, elem_t element)
+{
+    // inserts node with value element into current index in list
+    ioopm_list_insert(iter->list, iter->steps, element);
+    // updates the current node in the iterator
+    node_t **node = find_node(iter->list, iter->steps);
+    iter->current_node = *node;
+    if (iter->list->size == 1)
+    {
+        iter->current_node = iter->list->first;
+    }
+}

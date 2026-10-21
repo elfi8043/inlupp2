@@ -84,3 +84,5 @@ size_t ioopm_list_size(ioopm_list_t *list);
 /// @param list the linked list
 /// @return true if the number of elements int the list is 0, else false
 bool ioopm_list_is_empty(ioopm_list_t *list);
+
+node_t **find_node(ioopm_list_t *list, size_t index);

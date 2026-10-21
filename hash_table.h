@@ -45,7 +45,10 @@ bool ioopm_hash_table_lookup(ioopm_hash_table_t *ht, elem_t key, elem_t *result)
 /// @param key key to remove
 /// @param result a pointer to the value that was removed
 /// @return the value via result mapped to by the key and boolean true if key removed, else false e.g key nonexistent
-bool ioopm_hash_table_remove(ioopm_hash_table_t *ht, elem_t key, elem_t *result);
+bool ioopm_hash_table_remove(ioopm_hash_table_t *ht,
+                             elem_t key,
+                             elem_t *removed_key,
+                             elem_t *removed_value);
 
 /// @brief check if hash table ht has certain key
 /// @param ht hash table operated upon
