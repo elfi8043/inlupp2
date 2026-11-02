@@ -19,7 +19,6 @@ typedef struct
 {
     char *sl;
     int quant;
-    int no_reserved; // number of items of this merch reserved in a cart
 } stock_entry_t;
 
 typedef struct
@@ -105,11 +104,11 @@ db_status_t db_remove_from_cart(cart_t *cart, item_t *item, int quant);
 
 /// @brief calculates the total cost of the cart
 /// @param cart the cart to calculate for
-db_status_t db_calculate_cost(cart_t *cart);
+int db_calculate_cost(cart_t *cart);
 
 /// @brief decreases the stock of all items in the cart accoringly, removes cart from system
 /// @param cart the cart to checkout
 /// @param ht_sl_n a pointer to ht mapping storage location-> name of stored item
-db_status_t db_checkout(cart_t *cart, ioopm_hash_table_t ht_sl_n);
+db_status_t db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n);
 
 void db_ht_destroy(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n);
