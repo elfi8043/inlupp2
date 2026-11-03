@@ -1,324 +1,224 @@
-// Goes functions that prints stuff
-// and error handling for each function
-// there should be atleast one function per action
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
+#include "db_backend.h"
 #include <stdbool.h>
+#include "utils.h"
 
-#include "../../labbar/lab3/utils2.h"
-#include "webstore.h"
-
-#define LIST_PAGE_SIZE 20
-#define VALID_ACTIONS "ALDESPCR+-=OUQ"
-
-static bool accept_any(char *str)
+int main(int argc, char *argv[])
 {
-  (void) str;
-  return true;
+    // initialize databases
+    ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+    ioopm_hash_table_t *ht_sl_n = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+
+    // initialize cart list
+    ioopm_list_t *carts = ioopm_list_create();
+    int no_carts = 0;
+
+    event_loop(ht_n_i, ht_sl_n, carts, &no_carts);
 }
 
-static bool is_positive_int(char *str)
+void ui_add_merch(ioopm_hash_table_t *ht_n_i)
 {
-  return is_number(str) && atoi(str) >= 1;
+    puts("\nAdd Item: ");
+    char *name = ask_question_string("Name: ");
+    char *desc = ask_question_string("\nDescription: ");
+    int *price = ask_question_int("\nPrice: ");
+    item_t *item = db_create_item(name, desc, price);
+    db_status_t status = db_add_merch(ht_n_i, item);
+    if (status == DB_OK)
+    {
+      puts("\nItem added.");
+      return;
+    } else
+    {
+      puts("\nError: Merch exists");
+      return;
+    }
 }
 
-static bool is_non_negative_int(char *str)
+static void ui_remove_merch(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n)
 {
-  return is_number(str) && atoi(str) >= 0;
-}
-
-static char *ask_question_allow_empty(char *question)
-{
-  return ask_question(question, accept_any, convert_to_string).string_value;
-}
-
-/// Ställer en ja/nej-fråga. Sant om svaret börjar på 'Y' eller 'y'.
-static bool ask_confirmation(char *question)
-{
-  char *answer = ask_question_allow_empty(question);
-  bool yes = toupper((unsigned char) answer[0]) == 'Y';
-  free(answer);
-  return yes;
-}
-
-static int ask_positive_int(char *question)
-{
-  return ask_question(question, is_positive_int, convert_to_int).int_value;
-}
-
-static int ask_non_negative_int(char *question)
-{
-  return ask_question(question, is_non_negative_int, convert_to_int).int_value;
-}
-
-/// check_func: en lagerplats är en versal A-Z följd av exakt två siffror, t.ex. "B07".
-static bool is_valid_location(char *s)
-{
-  return strlen(s) == 3
-      && s[0] >= 'A' && s[0] <= 'Z'
-      && isdigit((unsigned char) s[1])
-      && isdigit((unsigned char) s[2]);
-}
-
-static char *ask_location(char *question)
-{
-  return ask_question(question, is_valid_location, convert_to_string).string_value;
-}
-
-static void print_status(ws_status_t status)
-{
-  switch (status)
+  puts("Remove Item:");
+  char *name = ask_question_string("Enter name of item to remove: ");
+  db_status_t status = db_remove_merch(ht_n_i, ht_sl_n, name);
+  if (status == DB_OK)
   {
-  case WS_OK:                 break;
-  case WS_MERCH_EXISTS:       puts("Fel: det finns redan en vara med det namnet."); break;
-  case WS_NO_SUCH_MERCH:      puts("Fel: varan finns inte."); break;
-  case WS_NO_SUCH_CART:       puts("Fel: kundvagnen finns inte."); break;
-  case WS_LOCATION_TAKEN:     puts("Fel: lagerplatsen innehåller redan en annan vara."); break;
-  case WS_INSUFFICIENT_STOCK: puts("Fel: det finns inte tillräckligt många i lager."); break;
-  case WS_NOT_IN_CART:        puts("Fel: varan finns inte i kundvagnen."); break;
+    puts("\nItem removed.");
+    return;
+  } else
+  {
+    puts("\nNo such merch exist");
+    return;
   }
 }
 
-/// Skriver ut success_msg om allt gick bra, annars ett felmeddelande.
-static void print_result(ws_status_t status, const char *success_msg)
+static void ui_edit_merch(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n)
 {
-  if (status == WS_OK) puts(success_msg);
-  else print_status(status);
-}
+  puts("Edit merch: ");
+  char *old_name = ask_question_string("Enter name of item to edit:");
+  char *name = ask_question_string("\nEnter new name: ");
+  char *desc = ask_question_string("\nEnter new description: ");
+  int *price = ask_question_int("\nEnter new price: ");
+  char *confirm = ask_question_string("\nConfirm (y/n): ");
 
-static void print_menu(void)
-{
-  puts("\n[A] Lägg till vara       [L] Lista varor          [D] Ta bort vara\n"
-       "[E] Redigera vara        [S] Visa lager           [P] Fyll på lager\n"
-       "[C] Skapa kundvagn       [R] Ta bort kundvagn     [+] Lägg i kundvagn\n"
-       "[-] Ta ur kundvagn       [=] Beräkna kostnad      [O] Gå till kassan\n"
-       "[U] Ångra                [Q] Avsluta");
-}
-
-static void ui_add_merch(webstore_t *ws)
-{
-  char *name = ask_question_string("Varans namn:");
-  char *desc = ask_question_string("Beskrivning:");
-  int price = ask_non_negative_int("Pris (SEK):");
-  item_t *item = db_create_item(name, desc, price);
-
-  print_result(ws_add_merch(ws, item), "Varan lades till.");
-
-  free(name);
-  free(desc);
-}
-
-static void ui_list_merch(webstore_t *ws)
-{
-  size_t count = 0;
-  ws_merch_info_t *merch = ws_list_merch(ws, &count);
-
-  if (count == 0) puts("Det finns inga varor.");
-
-  for (size_t i = 0; i < count; i++)
+  if (confirm[0] == "y" || confirm[0] == "Y")
   {
-    printf("%zu. %s - %s (%d SEK)\n", i + 1, merch[i].name, merch[i].desc, merch[i].price);
-
-    bool page_full = (i + 1) % LIST_PAGE_SIZE == 0;
-    bool more_left = i + 1 < count;
-    if (page_full && more_left)
+    db_status_t status = db_edit_merch(ht_n_i, ht_sl_n, old_name, name, desc, price);
+    if (status == DB_OK)
     {
-      char *answer = ask_question_allow_empty("Visa fler? (N för att återgå till menyn)");
-      bool stop = toupper((unsigned char) answer[0]) == 'N';
-      free(answer);
-      if (stop) break;
+      puts("Item edited.");
+      return;
+    } else
+    {
+      puts("Error: No such merch");
+      return;
+    }
+  } else
+  {
+    puts("Cancelled");
+  }
+}
+
+static void ui_list_merch(ioopm_hash_table_t *ht_n_i) {
+  ioopm_hash_table_iterator_t *iter = ioopm_hash_table_iterator_create(ht_n_i);
+  int count = 0;
+
+  while (!ioopm_hash_table_iterator_at_end(iter)) {
+    item_t *item = ioopm_hash_table_iterator_current_value(iter).p;
+    int total_left = item->total_stock - item->total_reserved;
+    printf("name: %s \n price: \n  %d,desc:  %s\n  items left:  %d \n", 
+    item->name, item->price, item->desc, total_left);
+
+    ioopm_hash_table_iterator_advance(iter);
+    count++;
+    if (count % 20 == 0) {
+      char *ans = ask_question_string("Enter N or n to break, else continue");
+      if (strcmp(ans, 'N') == 0 || strcmp(ans, 'n') == 0) {
+        break;
+      }
+      else {
+        continue;
+      }
     }
   }
-
-  free(merch);
+  ioopm_hash_table_iterator_destroy(iter);
 }
 
-static void ui_remove_merch(webstore_t *ws)
+static void ui_replenish(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n)
 {
-  char *name = ask_question_string("Namn på varan som ska tas bort:");
-
-  if (ask_confirmation("Är du säker? (y/n)"))
+  puts("Replenish item: ");
+  char *name = ask_question_string("Enter name of item to replenish: ");
+  int quant = ask_question_int("\nEnter replenish item amount: ");
+  char *sl = ask_question_shelf("\nEnter storage location to replenish to: ");
+  db_status_t status = db_replenish(ht_n_i, ht_sl_n, name, quant, sl);
+  if (status == DB_OK)
   {
-    print_result(ws_remove_merch(ws, name), "Varan togs bort.");
-  }
-  else
+    puts("Item replenished");
+    return; 
+  } else if (status == DB_LOCATION_TAKEN)
   {
-    puts("Ingenting togs bort.");
-  }
-
-  free(name);
+    puts("Error: Location occupied by another item.");
+    return;
+  } else if (status == DB_NO_SUCH_MERCH)
+  {
+    puts("Error: No such merch.");
+    return;
+  } 
 }
 
-static void ui_edit_merch(webstore_t *ws)
+static void ui_create_cart(ioopm_list_t *carts, int *no_carts)
 {
-  char *old_name = ask_question_string("Namn på varan som ska ändras:");
-  char *new_name = ask_question_string("Nytt namn:");
-  char *new_desc = ask_question_string("Ny beskrivning:");
-  int new_price = ask_non_negative_int("Nytt pris (SEK):");
-
-  if (ask_confirmation("Spara ändringarna? (y/n)"))
-  {
-    print_result(ws_edit_merch(ws, old_name, new_name, new_desc, new_price),
-                 "Varan uppdaterades.");
-  }
-  else
-  {
-    puts("Ingenting ändrades.");
-  }
-
-  free(old_name);
-  free(new_name);
-  free(new_desc);
+  puts("Create cart: ");
+  cart_t *cart = db_create_cart(no_carts);
+  ioopm_list_append(carts, ptr_elem(cart));
+  printf("Your cart id is %d", cart->id);
 }
 
-static void ui_show_stock(webstore_t *ws)
+cart_t *get_cart(ioopm_list_t *carts, int id)
 {
-  char *name = ask_question_string("Varans namn:");
-
-  size_t count = 0;
-  ws_status_t status = WS_OK;
-  ws_stock_entry_t *stock = ws_show_stock(ws, name, &count, &status);
-
-  if (status != WS_OK)
+  ioopm_list_iterator_t *iter = ioopm_hash_table_iterator_create(carts);
+  while (!ioopm_list_iterator_at_end(iter))
   {
-    print_status(status);
-  }
-  else if (count == 0)
-  {
-    printf("%s finns inte i lager.\n", name);
-  }
-  else
-  {
-    for (size_t i = 0; i < count; i++)
+    cart_t *curr = ioopm_list_iterator_current(iter).p;
+    if (curr->id = id)
     {
-      printf("%s: %d st\n", stock[i].location, stock[i].quantity);
+      return curr;
     }
   }
-
-  free(stock);
-  free(name);
+  
 }
 
-static void ui_replenish(webstore_t *ws)
+static void ui_remove_cart(ioopm_list_t *carts, int *no_carts)
 {
-  char *location = ask_location("Lagerplats:");
-  char *name = ask_question_string("Varans namn:");
-  int amount = ask_positive_int("Antal att lägga till:");
-
-  print_result(ws_replenish(ws, location, name, amount), "Lagret fylldes på.");
-
-  free(location);
-  free(name);
+  puts("Remove cart: ");
+  int id = ask_question_int("Enter id of cart to remove: ");
+  cart_t *cart = get_cart(carts, id);
+  db_status_t status = db_remove_cart(cart);
 }
 
-static void ui_create_cart(webstore_t *ws)
-{
-  int id = ws_create_cart(ws);
-  printf("Kundvagn %d skapades.\n", id);
-}
-
-static void ui_remove_cart(webstore_t *ws)
-{
-  int id = ask_question_int("Kundvagnens id:");
-
-  if (ask_confirmation("Är du säker? (y/n)"))
-  {
-    print_result(ws_remove_cart(ws, id), "Kundvagnen togs bort.");
+static db_status_t ui_show_stock_print(ioopm_hash_table_t *ht_n_i, char *name) {
+  elem_t elem;
+  bool exists = ioopm_hash_table_lookup(ht_n_i, string_elem(name), &elem);
+  if (!exists) {
+    return DB_NO_SUCH_MERCH;
   }
-  else
-  {
-    puts("Ingenting togs bort.");
-  }
+  item_t *item = elem.p;
+  ioopm_list_iterator_t *iter =
+        ioopm_list_iterator_create(item->l);
+
+    while (!ioopm_list_iterator_at_end(iter))
+    {
+        stock_entry_t *curr = ioopm_list_iterator_current(iter).p;
+         printf("Location: %s \n Quantaty: \n  %d", curr->sl, curr->quant);
+
+        ioopm_list_iterator_advance(iter);
+    }
+
+  ioopm_list_iterator_destroy(iter);
+  return DB_OK;
 }
 
-static void ui_add_to_cart(webstore_t *ws)
-{
-  int id = ask_question_int("Kundvagnens id:");
-  char *name = ask_question_string("Varans namn:");
-  int amount = ask_positive_int("Antal:");
-
-  print_result(ws_add_to_cart(ws, id, name, amount), "Varan lades i kundvagnen.");
-
-  free(name);
-}
-
-static void ui_remove_from_cart(webstore_t *ws)
-{
-  int id = ask_question_int("Kundvagnens id:");
-  char *name = ask_question_string("Varans namn:");
-  int amount = ask_non_negative_int("Antal:");
-
-  print_result(ws_remove_from_cart(ws, id, name, amount), "Varan togs ur kundvagnen.");
-
-  free(name);
-}
-
-static void ui_cart_cost(webstore_t *ws)
-{
-  int id = ask_question_int("Kundvagnens id:");
-
-  int cost = 0;
-  ws_status_t status = ws_cart_cost(ws, id, &cost);
-
-  if (status == WS_OK) printf("Kundvagn %d kostar %d SEK.\n", id, cost);
-  else print_status(status);
-}
-
-static void ui_checkout(webstore_t *ws)
-{
-  int id = ask_question_int("Kundvagnens id:");
-  print_result(ws_checkout(ws, id), "Köpet genomfördes.");
-}
-
-static char ask_action(void)
-{
-  while (true)
-  {
-    char *answer = ask_question_string("Välj kommando:");
-    char action = (char) toupper((unsigned char) answer[0]);
-    bool valid = strlen(answer) == 1 && strchr(VALID_ACTIONS, action) != NULL;
-    free(answer);
-
-    if (valid) return action;
-    puts("Ogiltigt kommando, försök igen.");
+static void ui_show_stock(ioopm_hash_table_t *ht_n_i) {
+  while (true) {
+    char *name = ask_question_string("Which items stock do you want to see?");
+    db_status_t status = ui_show_stock_print(ht_n_i, name);
+    if (status == DB_NO_SUCH_MERCH) {
+      char *ans = ask_question_string("No such merch, enter Y to try again");
+      if (strcmp(ans, 'y') == 0 || strcmp(ans, 'Y') == 0) {
+        continue;
+      }
+      else {
+        break;
+      }
+    }
+    else {
+      break;
+    }
   }
 }
 
-static void event_loop(webstore_t *ws)
+static void event_loop(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, ioopm_list_t *carts, int *no_carts)  
 {
   bool running = true;
 
   while (running)
-  {
     print_menu();
 
     switch (ask_action())
     {
-    case 'A': ui_add_merch(ws);        break;
-    case 'L': ui_list_merch(ws);       break;
-    case 'D': ui_remove_merch(ws);     break;
-    case 'E': ui_edit_merch(ws);       break;
-    case 'S': ui_show_stock(ws);       break;
-    case 'P': ui_replenish(ws);        break;
-    case 'C': ui_create_cart(ws);      break;
-    case 'R': ui_remove_cart(ws);      break;
-    case '+': ui_add_to_cart(ws);      break;
-    case '-': ui_remove_from_cart(ws); break;
-    case '=': ui_cart_cost(ws);        break;
-    case 'O': ui_checkout(ws);         break;
+    case 'A': ui_add_merch();        break;
+    case 'L': ui_list_merch();       break;
+    case 'D': ui_remove_merch();     break;
+    case 'E': ui_edit_merch();       break;
+    case 'S': ui_show_stock();       break;
+    case 'P': ui_replenish();        break;
+    case 'C': ui_create_cart();      break;
+    case 'R': ui_remove_cart();      break;
+    case '+': ui_add_to_cart();      break;
+    case '-': ui_remove_from_cart(); break;
+    case '=': ui_cart_cost();        break;
+    case 'O': ui_checkout();         break;
     case 'U': puts("Ångra är inte implementerat."); break;
     case 'Q': running = !ask_confirmation("Vill du avsluta? (y/n)"); break;
     }
   }
 }
 
-int main(void)
-{
-  webstore_t *ws = ws_create();
-  event_loop(ws);
-  ws_destroy(ws);
-  return 0;
-}
