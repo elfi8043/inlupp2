@@ -37,4 +37,6 @@ char *ask_question_shelf(char *question);
 
 bool is_shelf(char *shelf);
 
+char ask_question_char(char *question);
+
 #endif

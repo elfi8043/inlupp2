@@ -2,25 +2,6 @@
 #include <stdbool.h>
 #include "utils.h"
 
-
-int main(int argc, char *argv[])
-{
-    // initialize databases
-    ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
-    ioopm_hash_table_t *ht_sl_n = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
-
-    // initialize cart list
-    ioopm_list_t *carts = ioopm_list_create();
-    int no_carts = 0;
-
-    event_loop(ht_n_i, ht_sl_n, carts, &no_carts);
-    db_ht_destroy(ht_n_i, ht_sl_n);
-
-    // TODO: Cleanup list of carts
-
-    return 0;
-}
-
 static void print_menu(void)
 {
     puts("\n========== DB MENU ==========");
@@ -43,7 +24,7 @@ static void print_menu(void)
     puts("================================");
 }
 
-static char add_action()
+static char ask_action()
 {
   return ask_question_char("Enter an action: ");
 }
@@ -435,7 +416,24 @@ static void ui_checkout(ioopm_hash_table_t *ht_n_i,
   printf("Cost of cart: %d", cost);
 }
 
-
+static bool ask_confirmation(char *question)
+{
+  char cont;
+  while (true)
+  {
+    cont = ask_question_char(question);
+    if (cont == 'y' || cont == 'Y')
+    {
+      return true;
+    } else if (cont == 'n' || cont == 'N')
+    {
+      return false;
+    } else 
+    {
+      puts("Invalid input type y/n");
+    }
+  }
+}
 
 static void event_loop(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, ioopm_list_t *carts, int *no_carts)  
 {
@@ -465,3 +463,20 @@ static void event_loop(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, 
   }
 }
 
+int main(int argc, char *argv[])
+{
+    // initialize databases
+    ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+    ioopm_hash_table_t *ht_sl_n = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+
+    // initialize cart list
+    ioopm_list_t *carts = ioopm_list_create();
+    int no_carts = 0;
+
+    event_loop(ht_n_i, ht_sl_n, carts, &no_carts);
+    db_ht_destroy(ht_n_i, ht_sl_n);
+
+    // TODO: Cleanup list of carts
+
+    return 0;
+}
