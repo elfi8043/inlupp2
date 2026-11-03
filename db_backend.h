@@ -1,6 +1,16 @@
 #pragma once
 #include "hash_table.h"
 #include "linked_list.h"
+#include "hash_table.h"
+#include "hash_table_iterator.h"
+#include "list_iterator.h"
+#include "utils.h"
+
+#include <assert.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef enum
 {

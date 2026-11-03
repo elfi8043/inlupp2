@@ -1,15 +1,4 @@
-#include "hash_table.h"
-#include "hash_table_iterator.h"
-#include "linked_list.h"
-#include "list_iterator.h"
-#include "utils.h"
 #include "db_backend.h"
-
-#include <assert.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 
 /////////////////////
@@ -393,7 +382,7 @@ cart_t *db_create_cart(int *no_carts)
     cart_t *cart = calloc(1, sizeof(cart_t));
     cart->l = ioopm_list_create();
 
-    no_carts += 1;
+    *no_carts += 1;
     cart->id = *no_carts;
 
     return cart;
@@ -411,6 +400,8 @@ db_status_t db_remove_cart(cart_t *cart)
     {
         cart_elem_t *elem = ioopm_list_iterator_current(iter).p;
         free(elem->name);
+        free(elem);
+        ioopm_list_iterator_advance(iter);
     }
     ioopm_list_destroy(cart->l);
     free(cart);
@@ -480,6 +471,7 @@ db_status_t db_remove_from_cart(cart_t *cart, item_t *item, int quant)
             if (strcmp(curr->name, item->name) == 0)
             {   
                 free(curr->name);
+                free(curr);
                 ioopm_list_iterator_remove(iter);
                 ioopm_list_iterator_destroy(iter);
                 cart->total_cost -= quant * item->price;
