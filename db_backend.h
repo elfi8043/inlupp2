@@ -110,7 +110,7 @@ db_status_t db_add_to_cart(cart_t *cart, item_t *item, int quant);
 /// @param cart cart to remove from
 /// @param item item to remove
 /// @param quant number to remove
-db_status_t db_remove_from_cart(cart_t *cart, item_t *item, int quant);
+db_status_t db_remove_from_cart(ioopm_hash_table_t *ht_n_i, cart_t *cart, char *name, int quant);
 
 /// @brief calculates the total cost of the cart
 /// @param cart the cart to calculate for
@@ -119,6 +119,6 @@ int db_calculate_cost(cart_t *cart);
 /// @brief decreases the stock of all items in the cart accoringly, removes cart from system
 /// @param cart the cart to checkout
 /// @param ht_sl_n a pointer to ht mapping storage location-> name of stored item
-db_status_t db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n);
+int db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n);
 
 void db_ht_destroy(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n);

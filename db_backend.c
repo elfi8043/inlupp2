@@ -450,9 +450,9 @@ db_status_t db_add_to_cart(cart_t *cart, item_t *item, int quant) {
     return DB_OK;
 }
 
-db_status_t db_remove_from_cart(cart_t *cart, item_t *item, int quant)
+db_status_t db_remove_from_cart(ioopm_hash_table_t *ht_n_i, cart_t *cart, char *name, int quant)
 {
-    if (!find_cart_elem(cart, item->name))
+    if (!find_cart_elem(cart, name))
     {
         return DB_NOT_IN_CART;
     } 
@@ -461,6 +461,12 @@ db_status_t db_remove_from_cart(cart_t *cart, item_t *item, int quant)
         return DB_OK;
     }
 
+    elem_t elem;
+    bool exists = ioopm_hash_table_lookup(ht_n_i, string_elem(name), &elem);
+    if (!exists) {
+        return DB_NO_SUCH_MERCH;
+    }
+    item_t *item = elem.p;
     ioopm_list_iterator_t *iter = ioopm_list_iterator_create(cart->l);
     cart_elem_t *curr = ioopm_list_iterator_current(iter).p;
     if (quant >= curr->quant)
@@ -488,7 +494,7 @@ db_status_t db_remove_from_cart(cart_t *cart, item_t *item, int quant)
     }
 }
 
-db_status_t db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n)
+int db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n)
 {
     int total_cost = cart->total_cost;
 

@@ -170,3 +170,15 @@ char *ask_question_shelf(char *question)
 {
     return ask_question(question, is_shelf, (convert_func *) strdup).string_value;
 }
+
+// blatantly copied from chatgpt due to time constraints
+char ask_question_char(char *question)
+{
+    printf("%s", question);
+    char answer = getchar();
+
+    // Consume remaining newline
+    while (getchar() != '\n');
+
+    return (char) toupper((unsigned char) answer);
+}
