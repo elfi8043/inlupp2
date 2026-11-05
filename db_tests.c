@@ -160,6 +160,12 @@ void test_replenish(void)
         DB_OK
     );
 
+    // Testar att lägga till ytterligare 10 runstenar på A10
+    CU_ASSERT_EQUAL(
+        db_replenish(ht_n_i, ht_sl_n, "Runsten", 10, "a10"),
+        DB_OK
+    );
+
     // Kontrollera att lagerplatsen finns i lagerplatstabellen.
     elem_t res;
 
@@ -180,7 +186,7 @@ void test_replenish(void)
     stock_entry_t *stock = ioopm_list_head(item->l).p;
 
     CU_ASSERT_STRING_EQUAL(stock->sl, "a10");
-    CU_ASSERT_EQUAL(stock->quant, 10);
+    CU_ASSERT_EQUAL(stock->quant, 20);
 
     db_ht_destroy(ht_n_i, ht_sl_n);
 }
@@ -261,6 +267,23 @@ void test_edit_merch(void)
             "Runsten", "kulsten", "rolig sten", 40
         ),
         DB_OK
+    );
+
+    // Ändra namn på vara som inte finns
+    CU_ASSERT_EQUAL(
+        db_edit_merch(
+            ht_n_i, ht_sl_n,
+            "ful sten", "kulsten", "rolig sten", 40
+        ),
+        DB_NO_SUCH_MERCH
+    );
+
+    CU_ASSERT_EQUAL(
+        db_edit_merch(
+            ht_n_i, ht_sl_n,
+            "Jonkanon", "kulsten", "rolig sten", 40
+        ),
+        DB_MERCH_EXISTS
     );
 
     item_t *item = NULL;
@@ -570,6 +593,46 @@ void test_checkout_multiple_items(void)
     db_ht_destroy(ht_n_i, ht_sl_n);
 }
 
+void test_cart_stock_behavior(void)
+{
+    ioopm_hash_table_t *ht_n_i;
+    ioopm_hash_table_t *ht_sl_n;
+    create_test_tables(&ht_n_i, &ht_sl_n);
+
+    add_sample_merch_to_db(ht_n_i);
+ 
+    item_t *item = add_item_in_stock(ht_n_i, ht_sl_n, "Runsten", 50, 10, "A10");
+    item_t *item2 = add_item_in_stock(ht_n_i, ht_sl_n, "kola anka", 50, 20, "A70");
+ 
+    int no_carts = 0;
+    cart_t *cart = db_create_cart(&no_carts);
+    db_add_to_cart(cart, item, 2);
+    db_add_to_cart(cart, item2, 13);
+
+    CU_ASSERT_EQUAL(
+        db_edit_merch(
+            ht_n_i, ht_sl_n,
+            "Runsten", "Jonkanon", "rolig sten", 40
+        ),
+        DB_MERCH_EXISTS
+    );
+
+    db_status_t stat = db_remove_from_cart(ht_n_i, cart, "kola anka", 8);
+    CU_ASSERT_EQUAL(
+        stat,
+        DB_OK
+    );
+
+    // Testar ta bort mer än det som finns, borde nolla
+    db_status_t stat2 = db_remove_from_cart(ht_n_i, cart, "kola anka", 8);
+    CU_ASSERT_EQUAL(
+        stat2,
+        DB_OK
+    );
+
+    db_ht_destroy(ht_n_i, ht_sl_n);
+}
+
 int main(void)
 {
     if (CU_initialize_registry() != CUE_SUCCESS)
@@ -607,7 +670,9 @@ int main(void)
             test_remove_cart_releases_reservation) == NULL ||
         CU_add_test(my_test_suite, "checkout single location", test_checkout_single_location) == NULL ||
         CU_add_test(my_test_suite, "checkout empties location", test_checkout_empties_location) == NULL ||
-        CU_add_test(my_test_suite, "checkout multiple items", test_checkout_multiple_items) == NULL
+        CU_add_test(my_test_suite, "checkout multiple items", test_checkout_multiple_items) == NULL ||
+        CU_add_test(my_test_suite, "Test cart to stock behavior", test_cart_stock_behavior) == NULL
+
     )
     {
         CU_cleanup_registry();
