@@ -85,29 +85,28 @@ static void ui_edit_merch(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_
     if (status == DB_OK)
     {
       puts("Item edited.");
-      free(old_name);
-      free(name);
-      free(desc);
-      free(confirm);
-      return;
-    } else
+    } 
+    else if (status == DB_NO_SUCH_MERCH)
     {
       puts("Error: No such merch");
-      free(old_name);
-      free(name);
-      free(desc);
-      free(confirm);
-      return;
     }
-  } else
+    else if (status == DB_MERCH_EXISTS)
+    {
+      puts("Error: An item with that name already exists");
+    }
+    else if (status == DB_MERCH_IN_CART)
+    {
+      puts("Error: Cannot rename an item that is in a cart");
+    }
+  }
+  else
   {
     puts("Cancelled");
-    free(old_name);
-    free(name);
-    free(desc);
-    free(confirm);
-    return;
   }
+  free(old_name);
+  free(name);
+  free(desc);
+  free(confirm);
 }
 
 static void ui_list_merch(ioopm_hash_table_t *ht_n_i) {
@@ -125,9 +124,11 @@ static void ui_list_merch(ioopm_hash_table_t *ht_n_i) {
     if (count % 20 == 0) {
       char *confirm = ask_question_string("Enter N or n to break, else continue");
       if (confirm[0] == 'n' || confirm[0] == 'N') {
+        free(confirm);
         break;
       }
       else {
+        free(confirm);
         continue;
       }
     }
@@ -189,7 +190,7 @@ static cart_t *get_cart(ioopm_list_t *carts, int id)
   
 }
 
-static void remove_cart(ioopm_list_t *carts, int id, int *no_carts)
+static void remove_cart(ioopm_list_t *carts, int id)
 {
   ioopm_list_iterator_t *iter = ioopm_list_iterator_create(carts);
   while (!ioopm_list_iterator_at_end(iter))
@@ -197,16 +198,15 @@ static void remove_cart(ioopm_list_t *carts, int id, int *no_carts)
     cart_t *curr = ioopm_list_iterator_current(iter).p;
     if (curr->id == id)
     {
-      cart_t *cart = ioopm_list_iterator_remove(iter).p;
-      *no_carts -= 1;
+      ioopm_list_iterator_remove(iter);
+      break;
     }
     ioopm_list_iterator_advance(iter);
   }
   ioopm_list_iterator_destroy(iter);
-  return;
 }
 
-static void ui_remove_cart(ioopm_list_t *carts, int *no_carts)
+static void ui_remove_cart(ioopm_hash_table_t *ht_n_i, ioopm_list_t *carts)
 {
   puts("Remove cart: ");
   int id = ask_question_int("Enter id of cart to remove: ");
@@ -216,24 +216,21 @@ static void ui_remove_cart(ioopm_list_t *carts, int *no_carts)
     cart_t *cart = get_cart(carts, id);
     if (cart)
     {
-      db_status_t status = db_remove_cart(cart);
-      if (status == DB_OK)
-      {
-        // remove cart from list of carts
-        remove_cart(carts, id, no_carts);
-        puts("Cart removed.");
-        return;
-      } 
-    } else 
+      remove_cart(carts, id);     
+      db_remove_cart(ht_n_i, cart);     
+      puts("Cart removed.");
+    }
+    else
     {
-    puts("Error: No such cart");
-    return;
+      puts("Error: No such cart");
     }
   }
   else 
   {
     puts("Cancelled");
+    
   }
+  free(confirm);
 }
 
 static void ui_add_to_cart(ioopm_hash_table_t *ht_n_i, ioopm_list_t *carts)
@@ -264,6 +261,11 @@ static void ui_add_to_cart(ioopm_hash_table_t *ht_n_i, ioopm_list_t *carts)
       puts("Error: No such cart.");
       free(name);
       return;
+    } else if (status_cart == DB_INSUFFICIENT_STOCK)
+    {
+      puts("Error: Insufficient stock");
+      free(name);
+      return;
     }
 
   } else if (status == DB_NO_SUCH_MERCH)
@@ -271,12 +273,7 @@ static void ui_add_to_cart(ioopm_hash_table_t *ht_n_i, ioopm_list_t *carts)
     puts("Error: No such merch.");
     free(name);
     return;
-  } else if (status == DB_INSUFFICIENT_STOCK)
-  {
-    puts("Error: Insufficient stock");
-    free(name);
-    return;
-  }
+  } 
 }
 
 static db_status_t ui_show_stock_print(ioopm_hash_table_t *ht_n_i, char *name) {
@@ -308,10 +305,13 @@ static void ui_show_stock(ioopm_hash_table_t *ht_n_i) {
     if (status == DB_NO_SUCH_MERCH) {
       char *confirm = ask_question_string("No such merch, enter Y to try again");
       if (confirm[0] == 'y' || confirm[0] == 'Y') {
+        free(name);
+        free(confirm);
         continue;
       }
       else {
         free(name);
+        free(confirm);
         break;
       }
     }
@@ -344,9 +344,11 @@ static void ui_remove_from_cart(ioopm_hash_table_t *ht_n_i, ioopm_list_t *carts)
     if (cart == NULL) {
       char *confirm = ask_question_string("No such cart id, enter \"n\" to exit");
       if (confirm[0] == 'n' || confirm[0] == 'N')  {
+        free(confirm);
         return;
       }
       else {
+        free(confirm);
         continue;
       }
     }
@@ -360,12 +362,12 @@ static void ui_remove_from_cart(ioopm_hash_table_t *ht_n_i, ioopm_list_t *carts)
   db_status_t status = db_remove_from_cart(ht_n_i, cart, name, quant);
   if (status == DB_NO_SUCH_MERCH) {
     puts("No such merch");
-    free(name);
   }
   else if (status == DB_NOT_IN_CART) {
     puts("No such merch in cart");
-    free(name);
   }
+  free(name);
+
 }
 
 static void ui_cart_cost(ioopm_list_t *carts) {
@@ -412,6 +414,8 @@ static void ui_checkout(ioopm_hash_table_t *ht_n_i,
       break;
     }
   }
+  
+  remove_cart(carts, id);  
   int cost = db_checkout(cart, ht_n_i, ht_sl_n);
   printf("Cost of cart: %d", cost);
 }
@@ -452,7 +456,7 @@ static void event_loop(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, 
     case 'S': ui_show_stock(ht_n_i);       break;
     case 'P': ui_replenish(ht_n_i, ht_sl_n);        break;
     case 'C': ui_create_cart(carts, no_carts);      break;
-    case 'R': ui_remove_cart(carts, no_carts);      break;
+    case 'R': ui_remove_cart(ht_n_i, carts);      break;
     case '+': ui_add_to_cart(ht_n_i, carts);      break;
     case '-': ui_remove_from_cart(ht_n_i, carts); break;
     case '=': ui_cart_cost(carts);        break;
@@ -465,18 +469,28 @@ static void event_loop(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, 
 
 int main(int argc, char *argv[])
 {
-    // initialize databases
-    ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
-    ioopm_hash_table_t *ht_sl_n = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+  // initialize databases
+  ioopm_hash_table_t *ht_n_i = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
+  ioopm_hash_table_t *ht_sl_n = ioopm_hash_table_create(ioopm_hash_string, ioopm_string_comp);
 
-    // initialize cart list
-    ioopm_list_t *carts = ioopm_list_create();
-    int no_carts = 0;
+  // initialize cart list
+  ioopm_list_t *carts = ioopm_list_create();
+  int no_carts = 0;
 
-    event_loop(ht_n_i, ht_sl_n, carts, &no_carts);
-    db_ht_destroy(ht_n_i, ht_sl_n);
+  event_loop(ht_n_i, ht_sl_n, carts, &no_carts);
 
-    // TODO: Cleanup list of carts
 
-    return 0;
+  ioopm_list_iterator_t *it = ioopm_list_iterator_create(carts);
+  while (!ioopm_list_iterator_at_end(it))
+  {
+    cart_t *cart = ioopm_list_iterator_current(it).p;
+    db_destroy_cart(cart);
+    ioopm_list_iterator_advance(it);
+  }
+  ioopm_list_iterator_destroy(it);
+  ioopm_list_destroy(carts);
+
+  db_ht_destroy(ht_n_i, ht_sl_n);
+
+  return 0;
 }

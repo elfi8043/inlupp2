@@ -116,12 +116,21 @@ db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i,
     }
 
     item_t *item = to_remove.p;
-    int total_stock = item->total_stock;
-    int total_reserved = item->total_reserved;
+    bool renamed = strcmp(old_name, name) != 0;
+
+    if (renamed && ioopm_hash_table_has_key(ht_n_i, string_elem(name)))
+    {
+        return DB_MERCH_EXISTS;
+    }
+
+    // Kundvagnar sparar namnet, så det får inte ändras medan varan är reserverad
+    if (renamed && item->total_reserved > 0)
+    {
+        return DB_MERCH_IN_CART;
+    }
 
     item_t *item_to_insert = db_create_item(name, desc, price);
-    item_to_insert->total_reserved = total_reserved;
-    item_to_insert->total_stock = total_stock;
+    item_to_insert->total_reserved = item->total_reserved;
 
     // Kopiera de befintliga lagerposterna till en tillfällig lista.
     // Det gör att informationen finns kvar när den gamla varan tas bort.
@@ -263,6 +272,7 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
     {
         // Skapa en ny lagerpost som varan äger.
         stock_entry_t *entry = db_create_stock_entry(sl, quant);
+        holder->total_stock += quant; 
         ioopm_list_append(holder->l, ptr_elem(entry));
 
         // Registrera lagerplatsen och varans namn i hashtabellen.
@@ -285,6 +295,19 @@ db_status_t db_remove_merch(ioopm_hash_table_t *ht_n_i,
                             ioopm_hash_table_t *ht_sl_n,
                             char *name)
 {
+
+    item_t *check_item = NULL;
+    if (db_get_item(ht_n_i, name, &check_item) != DB_OK)
+    {
+        return DB_NO_SUCH_MERCH;
+    }
+
+    // 2. Vägra om den ligger i en kundvagn
+    if (check_item->total_reserved > 0)
+    {
+        return DB_MERCH_IN_CART;
+    }
+
     elem_t removed_val;
     elem_t removed_key;
 
@@ -392,7 +415,7 @@ cart_t *db_create_cart(int *no_carts)
 /**
  * Tar bort en kundvagn och frigör dess lista.
  */
-db_status_t db_remove_cart(cart_t *cart)
+void db_destroy_cart(cart_t *cart)
 {
     // remove allocted strings from cart elem names
     ioopm_list_iterator_t *iter = ioopm_list_iterator_create(cart->l);
@@ -403,10 +426,27 @@ db_status_t db_remove_cart(cart_t *cart)
         free(elem);
         ioopm_list_iterator_advance(iter);
     }
+    ioopm_list_iterator_destroy(iter);
     ioopm_list_destroy(cart->l);
     free(cart);
+}
 
-    return DB_OK;
+void db_remove_cart(ioopm_hash_table_t *ht_n_i, cart_t *cart)
+{
+    ioopm_list_iterator_t *iter = ioopm_list_iterator_create(cart->l);
+    while (!ioopm_list_iterator_at_end(iter))
+    {
+        cart_elem_t *elem = ioopm_list_iterator_current(iter).p;
+        item_t *item = NULL;
+        if (db_get_item(ht_n_i, elem->name, &item) == DB_OK)
+        {
+            item->total_reserved -= elem->quant;
+        }
+        ioopm_list_iterator_advance(iter);
+    }
+    ioopm_list_iterator_destroy(iter);
+
+    db_destroy_cart(cart);
 }
 
 static cart_elem_t *find_cart_elem(cart_t *cart, char *name) {
@@ -424,8 +464,9 @@ static cart_elem_t *find_cart_elem(cart_t *cart, char *name) {
         }
         ioopm_list_iterator_advance(iter);
     }
-    return NULL;
     ioopm_list_iterator_destroy(iter);
+    return NULL;
+    
 }
 
 db_status_t db_add_to_cart(cart_t *cart, item_t *item, int quant) {
@@ -452,46 +493,45 @@ db_status_t db_add_to_cart(cart_t *cart, item_t *item, int quant) {
 
 db_status_t db_remove_from_cart(ioopm_hash_table_t *ht_n_i, cart_t *cart, char *name, int quant)
 {
-    if (!find_cart_elem(cart, name))
+    // Hitta rätt rad i kundvagnen
+    cart_elem_t *elem = find_cart_elem(cart, name);
+    if (!elem)
     {
         return DB_NOT_IN_CART;
-    } 
-    if (quant == 0)
-    {
-        return DB_OK;
     }
 
-    elem_t elem;
-    bool exists = ioopm_hash_table_lookup(ht_n_i, string_elem(name), &elem);
-    if (!exists) {
-        return DB_NO_SUCH_MERCH;
-    }
-    item_t *item = elem.p;
-    ioopm_list_iterator_t *iter = ioopm_list_iterator_create(cart->l);
-    cart_elem_t *curr = ioopm_list_iterator_current(iter).p;
-    if (quant >= curr->quant)
-    // removes the cart element entirely
+    item_t *item = NULL;
+    if (db_get_item(ht_n_i, name, &item) != DB_OK)
     {
-        while (!ioopm_list_iterator_at_end(iter))
-        {
-            if (strcmp(curr->name, item->name) == 0)
-            {   
-                free(curr->name);
-                free(curr);
-                ioopm_list_iterator_remove(iter);
-                ioopm_list_iterator_destroy(iter);
-                cart->total_cost -= quant * item->price;
-                return DB_OK;
-            }
-            ioopm_list_iterator_advance(iter);
-        }
         return DB_NO_SUCH_MERCH;
-    } else
-    {   
-        cart->total_cost -= quant * item->price;
-        curr->quant -= quant;
-        return DB_OK;
     }
+
+    // samma som i kundvagnen om quant är större
+    int removed = quant < elem->quant ? quant : elem->quant;
+
+    elem->quant -= removed;
+    item->total_reserved -= removed;
+    cart->total_cost -= removed * item->price;
+
+    if (elem->quant == 0)
+    {
+        ioopm_list_iterator_t *it = ioopm_list_iterator_create(cart->l);
+        while (!ioopm_list_iterator_at_end(it))
+        {
+            if (ioopm_list_iterator_current(it).p == elem)
+            {
+                ioopm_list_iterator_remove(it);
+                break;
+            }
+            ioopm_list_iterator_advance(it);
+        }
+        ioopm_list_iterator_destroy(it);
+
+        free(elem->name);
+        free(elem);
+    }
+
+    return DB_OK;
 }
 
 int db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n)
@@ -534,6 +574,7 @@ int db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht
 
                 // Remove the stock entry from the item's list
                 free(curr_stock->sl);
+                free(curr_stock);
                 ioopm_list_iterator_remove(item_iter);
 
             } else if (remaining_quantity < curr_stock->quant)
@@ -559,7 +600,7 @@ int db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht
     }
     ioopm_list_iterator_destroy(cart_iter);
     // Empty the cart and free its elements
-    db_remove_cart(cart);
+    db_destroy_cart(cart);
     return total_cost;
 }
     

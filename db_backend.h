@@ -15,12 +15,13 @@
 typedef enum
 {
   DB_OK = 0,
-  DB_MERCH_EXISTS,       ///< En vara med det namnet finns redan
-  DB_NO_SUCH_MERCH,      ///< Varan finns inte
-  DB_NO_SUCH_CART,       ///< Kundvagnen finns inte
-  DB_LOCATION_TAKEN,     ///< Lagerplatsen innehåller redan en annan vara
-  DB_INSUFFICIENT_STOCK, ///< Det finns inte tillräckligt i lager för alla kundvagnar
-  DB_NOT_IN_CART,        ///< Varan finns inte i kundvagnen
+  DB_MERCH_EXISTS,       // En vara med det namnet finns redan
+  DB_NO_SUCH_MERCH,      // Varan finns inte
+  DB_NO_SUCH_CART,       // Kundvagnen finns inte
+  DB_LOCATION_TAKEN,     // Lagerplatsen innehåller redan en annan vara
+  DB_INSUFFICIENT_STOCK, // Det finns inte tillräckligt i lager för alla kundvagnar
+  DB_NOT_IN_CART,        // Varan finns inte i kundvagnen
+  DB_MERCH_IN_CART,      // Varan finns i en kundvagn
 } db_status_t;
 
 // stores where item is stored and quantity at that location
@@ -96,9 +97,15 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n
 /// @returns a pointer to the newly created cart
 cart_t *db_create_cart(int *no_carts); 
 
-/// @brief removes a cart from the system
+/// @brief destroys a carts memory
 /// @param cart poitner to the cart to remove
-db_status_t db_remove_cart(cart_t *cart);
+void db_destroy_cart(cart_t *cart);
+
+
+/// @brief destroys a carts memory and restores total_reserved in hash table
+/// @param cart poitner to the cart to remove
+/// @param ht_n_i a pointer to a ht mapping item name -> item*
+void db_remove_cart(ioopm_hash_table_t *ht_n_i, cart_t *cart);
 
 /// @brief adds a quantity of an item to a cart
 /// @param cart shopping cart to add item to
