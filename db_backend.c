@@ -449,7 +449,7 @@ void db_remove_cart(ioopm_hash_table_t *ht_n_i, cart_t *cart)
     db_destroy_cart(cart);
 }
 
-static cart_elem_t *find_cart_elem(cart_t *cart, char *name) {
+cart_elem_t *find_cart_elem(cart_t *cart, char *name) {
     ioopm_list_iterator_t *iter =
         ioopm_list_iterator_create(cart->l);
 

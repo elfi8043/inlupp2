@@ -101,6 +101,7 @@ cart_t *db_create_cart(int *no_carts);
 /// @param cart poitner to the cart to remove
 void db_destroy_cart(cart_t *cart);
 
+cart_elem_t *find_cart_elem(cart_t *cart, char *name);
 
 /// @brief destroys a carts memory and restores total_reserved in hash table
 /// @param cart poitner to the cart to remove

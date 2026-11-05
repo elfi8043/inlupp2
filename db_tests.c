@@ -95,6 +95,19 @@ static void create_test_tables(ioopm_hash_table_t **ht_n_i,
     );
 }
 
+static item_t *add_item_in_stock(ioopm_hash_table_t *ht_n_i,
+                                 ioopm_hash_table_t *ht_sl_n,
+                                 char *name, int price,
+                                 int quant, char *sl)
+{
+    db_add_merch(ht_n_i, db_create_item(name, "Testvara", price));
+    db_replenish(ht_n_i, ht_sl_n, name, quant, sl);
+ 
+    item_t *item = NULL;
+    db_get_item(ht_n_i, name, &item);
+    return item;
+}
+
 /**
  * Testar att en vara kan läggas till och att dubbletter avvisas.
  */
@@ -354,6 +367,209 @@ void test_remove_merch(void)
     db_ht_destroy(ht_n_i, ht_sl_n);
 }
 
+void test_create_cart(void)
+{
+    int no_carts = 0;
+ 
+    cart_t *c1 = db_create_cart(&no_carts);
+    cart_t *c2 = db_create_cart(&no_carts);
+ 
+    CU_ASSERT_EQUAL(c1->id, 1);
+    CU_ASSERT_EQUAL(c2->id, 2);
+    CU_ASSERT_EQUAL(no_carts, 2);
+    CU_ASSERT_TRUE(ioopm_list_is_empty(c1->l));
+    CU_ASSERT_EQUAL(c1->total_cost, 0);
+ 
+    db_destroy_cart(c1);
+    db_destroy_cart(c2);
+}
+
+void test_add_same_item_twice(void)
+{
+    ioopm_hash_table_t *ht_n_i;
+    ioopm_hash_table_t *ht_sl_n;
+    create_test_tables(&ht_n_i, &ht_sl_n);
+ 
+    item_t *item = add_item_in_stock(ht_n_i, ht_sl_n, "Runsten", 50, 10, "A10");
+ 
+    int no_carts = 0;
+    cart_t *cart = db_create_cart(&no_carts);
+    db_add_to_cart(cart, item, 2);
+    db_add_to_cart(cart, item, 3);
+ 
+    CU_ASSERT_EQUAL(ioopm_list_size(cart->l), 1);
+    cart_elem_t *elem = find_cart_elem(cart, "Runsten");
+    CU_ASSERT_PTR_NOT_NULL(elem);
+    if (elem)
+    {
+        CU_ASSERT_EQUAL(elem->quant, 5);
+    }
+    CU_ASSERT_EQUAL(item->total_reserved, 5);
+    CU_ASSERT_EQUAL(cart->total_cost, 5 * 50);
+ 
+    db_remove_cart(ht_n_i, cart);
+    db_ht_destroy(ht_n_i, ht_sl_n);
+}
+
+void test_add_to_cart_insufficient_stock(void)
+{
+    ioopm_hash_table_t *ht_n_i;
+    ioopm_hash_table_t *ht_sl_n;
+    create_test_tables(&ht_n_i, &ht_sl_n);
+ 
+    item_t *item = add_item_in_stock(ht_n_i, ht_sl_n, "Runsten", 50, 5, "A10");
+ 
+    int no_carts = 0;
+    cart_t *cart = db_create_cart(&no_carts);
+ 
+    CU_ASSERT_EQUAL(db_add_to_cart(cart, item, 6), DB_INSUFFICIENT_STOCK);
+    CU_ASSERT_TRUE(ioopm_list_is_empty(cart->l));
+    CU_ASSERT_EQUAL(item->total_reserved, 0);
+ 
+    // Exakt hela lagret ska gå bra.
+    CU_ASSERT_EQUAL(db_add_to_cart(cart, item, 5), DB_OK);
+ 
+    db_remove_cart(ht_n_i, cart);
+    db_ht_destroy(ht_n_i, ht_sl_n);
+}
+ 
+void test_remove_from_cart_not_in_cart(void)
+{
+    ioopm_hash_table_t *ht_n_i;
+    ioopm_hash_table_t *ht_sl_n;
+    create_test_tables(&ht_n_i, &ht_sl_n);
+ 
+    add_item_in_stock(ht_n_i, ht_sl_n, "Runsten", 50, 10, "A10");
+ 
+    int no_carts = 0;
+    cart_t *cart = db_create_cart(&no_carts);
+ 
+    CU_ASSERT_EQUAL(db_remove_from_cart(ht_n_i, cart, "Runsten", 1), DB_NOT_IN_CART);
+ 
+    db_remove_cart(ht_n_i, cart);
+    db_ht_destroy(ht_n_i, ht_sl_n);
+}
+
+void test_remove_cart_releases_reservation(void)
+{
+    ioopm_hash_table_t *ht_n_i;
+    ioopm_hash_table_t *ht_sl_n;
+    create_test_tables(&ht_n_i, &ht_sl_n);
+ 
+    item_t *item = add_item_in_stock(ht_n_i, ht_sl_n, "Runsten", 50, 5, "A10");
+ 
+    int no_carts = 0;
+    cart_t *c1 = db_create_cart(&no_carts);
+    db_add_to_cart(c1, item, 5);
+ 
+    db_remove_cart(ht_n_i, c1);
+    CU_ASSERT_EQUAL(item->total_reserved, 0);
+ 
+    // Hela lagret ska nu gå att lägga i en ny kundvagn.
+    cart_t *c2 = db_create_cart(&no_carts);
+    CU_ASSERT_EQUAL(db_add_to_cart(c2, item, 5), DB_OK);
+ 
+    db_remove_cart(ht_n_i, c2);
+    db_ht_destroy(ht_n_i, ht_sl_n);
+}
+
+void test_checkout_single_location(void)
+{
+    ioopm_hash_table_t *ht_n_i;
+    ioopm_hash_table_t *ht_sl_n;
+    create_test_tables(&ht_n_i, &ht_sl_n);
+ 
+    item_t *item = add_item_in_stock(ht_n_i, ht_sl_n, "Runsten", 50, 10, "A10");
+ 
+    int no_carts = 0;
+    cart_t *cart = db_create_cart(&no_carts);
+    db_add_to_cart(cart, item, 4);
+ 
+    // Checkout returnerar kostnaden och frigör kundvagnen.
+    CU_ASSERT_EQUAL(db_checkout(cart, ht_n_i, ht_sl_n), 4 * 50);
+ 
+    CU_ASSERT_EQUAL(item->total_stock, 6);
+    CU_ASSERT_EQUAL(item->total_reserved, 0);
+ 
+    stock_entry_t *stock = ioopm_list_head(item->l).p;
+    CU_ASSERT_EQUAL(stock->quant, 6);
+ 
+    elem_t res;
+    CU_ASSERT_TRUE(ioopm_hash_table_lookup(ht_sl_n, string_elem("A10"), &res));
+ 
+    db_ht_destroy(ht_n_i, ht_sl_n);
+}
+ 
+ 
+/**
+ * Testar checkout som tömmer en lagerplats och tar resten från nästa.
+ */
+void test_checkout_empties_location(void)
+{
+    ioopm_hash_table_t *ht_n_i;
+    ioopm_hash_table_t *ht_sl_n;
+    create_test_tables(&ht_n_i, &ht_sl_n);
+ 
+    item_t *item = add_item_in_stock(ht_n_i, ht_sl_n, "Runsten", 50, 4, "A10");
+    db_replenish(ht_n_i, ht_sl_n, "Runsten", 6, "B10");
+ 
+    int no_carts = 0;
+    cart_t *cart = db_create_cart(&no_carts);
+    db_add_to_cart(cart, item, 5);
+ 
+    db_checkout(cart, ht_n_i, ht_sl_n);
+ 
+    CU_ASSERT_EQUAL(item->total_stock, 5);
+    CU_ASSERT_EQUAL(item->total_reserved, 0);
+ 
+    // A10 tömdes och ska vara borta överallt.
+    CU_ASSERT_EQUAL(ioopm_list_size(item->l), 1);
+    elem_t res;
+    CU_ASSERT_FALSE(ioopm_hash_table_lookup(ht_sl_n, string_elem("A10"), &res));
+ 
+    stock_entry_t *stock = ioopm_list_head(item->l).p;
+    CU_ASSERT_STRING_EQUAL(stock->sl, "B10");
+    CU_ASSERT_EQUAL(stock->quant, 5);
+ 
+    // Varan ska fortfarande gå att hitta på sitt namn.
+    item_t *found = NULL;
+    CU_ASSERT_EQUAL(db_get_item(ht_n_i, "Runsten", &found), DB_OK);
+    CU_ASSERT_STRING_EQUAL(item->name, "Runsten");
+ 
+    db_ht_destroy(ht_n_i, ht_sl_n);
+}
+ 
+ 
+/**
+ * Testar checkout med flera olika varor i samma kundvagn.
+ */
+void test_checkout_multiple_items(void)
+{
+    ioopm_hash_table_t *ht_n_i;
+    ioopm_hash_table_t *ht_sl_n;
+    create_test_tables(&ht_n_i, &ht_sl_n);
+ 
+    item_t *first = add_item_in_stock(ht_n_i, ht_sl_n, "Runsten", 50, 10, "A10");
+    item_t *second = add_item_in_stock(ht_n_i, ht_sl_n, "Lykta", 20, 3, "B10");
+ 
+    int no_carts = 0;
+    cart_t *cart = db_create_cart(&no_carts);
+    db_add_to_cart(cart, first, 2);
+    db_add_to_cart(cart, second, 3);
+ 
+    CU_ASSERT_EQUAL(db_checkout(cart, ht_n_i, ht_sl_n), 2 * 50 + 3 * 20);
+ 
+    CU_ASSERT_EQUAL(first->total_stock, 8);
+    CU_ASSERT_EQUAL(second->total_stock, 0);
+ 
+    // Lykta har inget lager kvar, så B10 ska vara ledig.
+    CU_ASSERT_TRUE(ioopm_list_is_empty(second->l));
+    elem_t res;
+    CU_ASSERT_FALSE(ioopm_hash_table_lookup(ht_sl_n, string_elem("B10"), &res));
+ 
+    db_ht_destroy(ht_n_i, ht_sl_n);
+}
+
 int main(void)
 {
     if (CU_initialize_registry() != CUE_SUCCESS)
@@ -380,7 +596,18 @@ int main(void)
         CU_add_test(my_test_suite, "caller frees strings",
                     test_add_merch_survives_caller_free) == NULL ||
         CU_add_test(my_test_suite, "edit merch", test_edit_merch) == NULL ||
-        CU_add_test(my_test_suite, "remove merch", test_remove_merch) == NULL
+        CU_add_test(my_test_suite, "remove merch", test_remove_merch) == NULL ||
+        CU_add_test(my_test_suite, "create cart", test_create_cart) == NULL ||
+        CU_add_test(my_test_suite, "add same item twice", test_add_same_item_twice) == NULL ||
+        CU_add_test(my_test_suite, "add to cart insufficient stock", 
+            test_add_to_cart_insufficient_stock) == NULL ||
+        CU_add_test(my_test_suite, "remove from cart not in cart", 
+            test_remove_from_cart_not_in_cart) == NULL ||
+        CU_add_test(my_test_suite, "remove cart releases reservation", 
+            test_remove_cart_releases_reservation) == NULL ||
+        CU_add_test(my_test_suite, "checkout single location", test_checkout_single_location) == NULL ||
+        CU_add_test(my_test_suite, "checkout empties location", test_checkout_empties_location) == NULL ||
+        CU_add_test(my_test_suite, "checkout multiple items", test_checkout_multiple_items) == NULL
     )
     {
         CU_cleanup_registry();
