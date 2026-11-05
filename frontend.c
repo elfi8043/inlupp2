@@ -116,7 +116,7 @@ static void ui_list_merch(ioopm_hash_table_t *ht_n_i) {
   while (!ioopm_hash_table_iterator_at_end(iter)) {
     item_t *item = ioopm_hash_table_iterator_current_value(iter).p;
     int total_left = item->total_stock - item->total_reserved;
-    printf("name: %s \n price: \n  %d,desc:  %s\n  items left:  %d \n", 
+    printf(" \nname: %s \nprice: %d  \ndesc: %s\nitems left: %d \n", 
     item->name, item->price, item->desc, total_left);
 
     ioopm_hash_table_iterator_advance(iter);
