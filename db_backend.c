@@ -5,10 +5,6 @@
 // HJÄLPFUNKTIONER
 /////////////////////
 
-/**
- * Skapar en vara och initierar dess fält.
- * Namn och beskrivning kopieras så att varan äger sina strängar.
- */
 item_t *db_create_item(char *name, char *desc, int price)
 {
     item_t *item = calloc(1, sizeof(item_t));
@@ -20,11 +16,6 @@ item_t *db_create_item(char *name, char *desc, int price)
     return item;
 }
 
-
-/**
- * Frigör en lagerlista, inklusive lagerplatsernas strängar
- * och tillhörande lagerposter.
- */
 static void destroy_stock_list(ioopm_list_t *list)
 {
     ioopm_list_iterator_t *it = ioopm_list_iterator_create(list);
@@ -43,10 +34,6 @@ static void destroy_stock_list(ioopm_list_t *list)
     ioopm_list_destroy(list);
 }
 
-
-/**
- * Frigör en vara och all data som varan äger.
- */
 static void destroy_item(item_t *item)
 {
     free(item->name);
@@ -55,11 +42,6 @@ static void destroy_item(item_t *item)
     free(item);
 }
 
-
-/**
- * Skapar en lagerpost med en kopia av lagerplatsens namn
- * och anger hur många enheter som finns på platsen.
- */
 static stock_entry_t *db_create_stock_entry(char *sl, int quant)
 {
     stock_entry_t *entry = calloc(1, sizeof(stock_entry_t));
@@ -70,13 +52,9 @@ static stock_entry_t *db_create_stock_entry(char *sl, int quant)
 }
 
 /////////////////////
-// VARUHANTERING
+// MERCH FUNKTIOEER
 /////////////////////
 
-/**
- * Lägger till en vara i hashtabellen.
- * Om varan redan finns frigörs den nya varan och ett fel returneras.
- */
 db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch)
 {
     if (ioopm_hash_table_has_key(ht_n_i, string_elem(merch->name)))
@@ -94,12 +72,6 @@ db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch)
     return DB_OK;
 }
 
-
-/**
- * Ändrar en varas namn, beskrivning och pris.
- * Befintligt lager kopieras och återskapas efter att den gamla
- * varan tagits bort.
- */
 db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i,
                           ioopm_hash_table_t *ht_sl_n,
                           char *old_name,
@@ -120,10 +92,10 @@ db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i,
 
     if (renamed && ioopm_hash_table_has_key(ht_n_i, string_elem(name)))
     {
-        return DB_MERCH_EXISTS;
+        return DB_MERCH_EXISTS; // Kan inte döpa om merch till merch som redan finns
     }
 
-    // Kundvagnar sparar namnet, så det får inte ändras medan varan är reserverad
+    // Om varan ligger i en kundvagn får man inte heller ändra den
     if (renamed && item->total_reserved > 0)
     {
         return DB_MERCH_IN_CART;
@@ -132,8 +104,6 @@ db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i,
     item_t *item_to_insert = db_create_item(name, desc, price);
     item_to_insert->total_reserved = item->total_reserved;
 
-    // Kopiera de befintliga lagerposterna till en tillfällig lista.
-    // Det gör att informationen finns kvar när den gamla varan tas bort.
     ioopm_list_t *temp_list = ioopm_list_create();
     ioopm_list_iterator_t *it =
         ioopm_list_iterator_create(item->l);
@@ -150,7 +120,6 @@ db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i,
 
     ioopm_list_iterator_destroy(it);
 
-    // Ta bort den gamla varan och lägg till den uppdaterade varan.
     db_remove_merch(ht_n_i, ht_sl_n, old_name);
     db_add_merch(ht_n_i, item_to_insert);
 
@@ -171,17 +140,12 @@ db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i,
 
     ioopm_list_iterator_destroy(it2);
 
-    // Frigör den tillfälliga listan och dess kopierade lagerposter.
     destroy_stock_list(temp_list);
 
     return DB_OK;
 }
 
 
-/**
- * Hämtar en vara utifrån dess namn.
- * Resultatpekaren uppdateras om varan hittas.
- */
 db_status_t db_get_item(ioopm_hash_table_t *ht_n_i,
                         char *name,
                         item_t **result)
@@ -191,7 +155,7 @@ db_status_t db_get_item(ioopm_hash_table_t *ht_n_i,
     if (ioopm_hash_table_lookup(
             ht_n_i, string_elem(name), &holder))
     {
-        *result = holder.p;
+        *result = holder.p; // ändra result pointer till att peka på varan
         return DB_OK;
     }
     else
@@ -200,11 +164,6 @@ db_status_t db_get_item(ioopm_hash_table_t *ht_n_i,
     }
 }
 
-
-/**
- * Ökar lagersaldot för en vara och uppdaterar antalet
- * om lagerplatsen redan finns i varans lagerlista.
- */
 static void item_replenish(item_t *item, char *sl, int quant)
 {
     item->total_stock += quant;
@@ -219,24 +178,17 @@ static void item_replenish(item_t *item, char *sl, int quant)
 
         if (strcmp(curr->sl, sl) == 0)
         {
-            // Lagerplatsen finns redan: uppdatera antalet.
+            // Lagerplatsen finns redan, uppdatera antalet.
             curr->quant += quant;
             break;
         }
 
-        // Fortsätt söka bland nästa lagerposter.
         ioopm_list_iterator_advance(iter);
     }
 
     ioopm_list_iterator_destroy(iter);
 }
 
-
-/**
- * Fyller på lagret för en vara på en angiven lagerplats.
- * Returnerar fel om varan saknas eller lagerplatsen används
- * av en annan vara.
- */
 db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
                          ioopm_hash_table_t *ht_sl_n,
                          char *name,
@@ -257,7 +209,7 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
     {
         char *item_name = res.s;
 
-        // Kontrollera att lagerplatsen tillhör den aktuella varan.
+        // Kontrollera att sl tillhör den varan.
         if (strcmp(item_name, holder->name) == 0)
         {
             item_replenish(holder, sl, quant);
@@ -270,13 +222,12 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
     }
     else
     {
-        // Skapa en ny lagerpost som varan äger.
+        // Skapa en ny stock_entry som varan äger.
         stock_entry_t *entry = db_create_stock_entry(sl, quant);
         holder->total_stock += quant; 
         ioopm_list_append(holder->l, ptr_elem(entry));
 
-        // Registrera lagerplatsen och varans namn i hashtabellen.
-        // Hashtabellen får egna kopior av båda strängarna.
+        // spara sl i ht_sl_n
         ioopm_hash_table_insert(
             ht_sl_n,
             string_elem(strdup(entry->sl)),
@@ -287,10 +238,6 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i,
     }
 }
 
-
-/**
- * Tar bort en vara och frigör dess tillhörande lagerplatser.
- */
 db_status_t db_remove_merch(ioopm_hash_table_t *ht_n_i,
                             ioopm_hash_table_t *ht_sl_n,
                             char *name)
@@ -302,7 +249,7 @@ db_status_t db_remove_merch(ioopm_hash_table_t *ht_n_i,
         return DB_NO_SUCH_MERCH;
     }
 
-    // 2. Vägra om den ligger i en kundvagn
+    // 2. error om den ligger i en kundvagn
     if (check_item->total_reserved > 0)
     {
         return DB_MERCH_IN_CART;
@@ -350,10 +297,6 @@ db_status_t db_remove_merch(ioopm_hash_table_t *ht_n_i,
     return DB_OK;
 }
 
-
-/**
- * Frigör båda hashtabellerna och deras dynamiskt allokerade data.
- */
 void db_ht_destroy(ioopm_hash_table_t *ht_n_i,
                    ioopm_hash_table_t *ht_sl_n)
 {
@@ -397,9 +340,6 @@ void db_ht_destroy(ioopm_hash_table_t *ht_n_i,
 // KUNDVAGNSFUNKTIONER
 /////////////////////
 
-/**
- * Skapar en kundvagn och tilldelar den ett ID.
- */
 cart_t *db_create_cart(int *no_carts)
 {
     cart_t *cart = calloc(1, sizeof(cart_t));
@@ -411,10 +351,6 @@ cart_t *db_create_cart(int *no_carts)
     return cart;
 }
 
-
-/**
- * Tar bort en kundvagn och frigör dess lista.
- */
 void db_destroy_cart(cart_t *cart)
 {
     // remove allocted strings from cart elem names
@@ -465,8 +401,7 @@ cart_elem_t *find_cart_elem(cart_t *cart, char *name) {
         ioopm_list_iterator_advance(iter);
     }
     ioopm_list_iterator_destroy(iter);
-    return NULL;
-    
+    return NULL; 
 }
 
 db_status_t db_add_to_cart(cart_t *cart, item_t *item, int quant) {
@@ -538,20 +473,20 @@ int db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht
 {
     int total_cost = cart->total_cost;
 
-    // For each item in the cart
+    // For alla varor i cart
     ioopm_list_iterator_t *cart_iter = ioopm_list_iterator_create(cart->l);
     while (!ioopm_list_iterator_at_end(cart_iter))
     {
 
-        // Find the corresponding item in ht_n_i
+        // Hitta motsvarande vara i carten
         cart_elem_t *curr_cart = ioopm_list_iterator_current(cart_iter).p;
         item_t *item;
         db_get_item(ht_n_i, curr_cart->name, &item);
 
-        // Set remaining quantity to the cart item's quantity
+        // Hur mycket i vi har kvar att fylla i carten
         int remaining_quantity = curr_cart->quant;
 
-        // Iterate through the item's stock list
+        // Gå igenom varans lista över lagerplatser
         ioopm_list_iterator_t *item_iter = ioopm_list_iterator_create(item->l);
         while(!ioopm_list_iterator_at_end(item_iter))
         {
@@ -561,45 +496,40 @@ int db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht
                 break;
             } else if (remaining_quantity >= curr_stock->quant)
             {
-                // decrease remaining_quantity and total stock
+                // Minska hur mycket vi har kvar att fylla och hur mycket av varan som finns kvar
                 remaining_quantity -= curr_stock->quant;
                 item->total_stock -= curr_stock->quant;
 
-                // Remove the location from ht_sl_n
+                // Tar bort sl från ht_sl_n då den nu är tom
                 elem_t removed_key;
                 elem_t removed_value;
                 ioopm_hash_table_remove(ht_sl_n, string_elem(curr_stock->sl), &removed_key, &removed_value);
                 free(removed_key.s);
                 free(removed_value.s);
 
-                // Remove the stock entry from the item's list
+                // tar bort stock entry från varans lista.
                 free(curr_stock->sl);
                 free(curr_stock);
                 ioopm_list_iterator_remove(item_iter);
 
             } else if (remaining_quantity < curr_stock->quant)
             {
-            
-
-                // decerase remaining_quantity from current location
+                // Dra bort återstående mängd från hur mycket som finns kvar av varan
                 curr_stock->quant -= remaining_quantity;
 
-                // Decrease total_stock by remaining quantity
                 item->total_stock -= remaining_quantity;
 
-                // done!
+                // Färdig!
                 remaining_quantity = 0;
 
             }
         }
         ioopm_list_iterator_destroy(item_iter);
 
-        // Decrease total_reserved by the cart item's quantity
         item->total_reserved -= curr_cart->quant;
         ioopm_list_iterator_advance(cart_iter);
     }
     ioopm_list_iterator_destroy(cart_iter);
-    // Empty the cart and free its elements
     db_destroy_cart(cart);
     return total_cost;
 }
