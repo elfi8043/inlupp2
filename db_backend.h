@@ -42,18 +42,12 @@ typedef struct
     ioopm_list_t *l;
 } item_t;
 
-typedef struct
-{
-    ioopm_list_t *l;
-    int id;
-    int total_cost; //add to this number everytime we add an item
-} cart_t;
+/// En kundvagn. Innehållet är dolt; använd funktionerna nedan.
+typedef struct cart cart_t;
 
-typedef struct
-{
-    char *name;
-    int quant;
-} cart_elem_t;
+/// Funktionstyp för db_cart_apply: anropas en gång per rad i kundvagnen.
+typedef void cart_row_fn(char *name, int quant);
+
 
 /// @brief creates an item
 /// @param name the name of the item
@@ -97,11 +91,29 @@ db_status_t db_replenish(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n
 /// @returns a pointer to the newly created cart
 cart_t *db_create_cart(int *no_carts); 
 
+/// @brief Hämtar en kundvagns id
+int db_cart_id(cart_t *cart);
+
+/// @brief Hämtar kundvagnens totala kostnad
+int db_cart_cost(cart_t *cart);
+
+/// @brief Antal olika varor i kundvagnen
+size_t db_cart_size(cart_t *cart);
+
+/// @brief Hur många av en vara kundvagnen innehåller
+int db_cart_quantity(cart_t *cart, char *name);
+
+/// @brief Anropar fn en gång för varje rad i kundvagnen
+/// @param cart
+/// @param fn function som ska använda cart element
+void db_cart_apply(cart_t *cart, cart_row_fn *fn);
+
+
 /// @brief destroys a carts memory
 /// @param cart poitner to the cart to remove
 void db_destroy_cart(cart_t *cart);
 
-cart_elem_t *find_cart_elem(cart_t *cart, char *name);
+
 
 /// @brief destroys a carts memory and restores total_reserved in hash table
 /// @param cart poitner to the cart to remove

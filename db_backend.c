@@ -1,6 +1,19 @@
 #include "db_backend.h"
 
 
+typedef struct
+{
+    char *name;
+    int quant;
+} cart_elem_t;
+
+struct cart
+{
+    ioopm_list_t *l;
+    int id;
+    int total_cost;
+};
+
 /////////////////////
 // HJÄLPFUNKTIONER
 /////////////////////
@@ -411,6 +424,63 @@ cart_t *db_create_cart(int *no_carts)
     return cart;
 }
 
+static cart_elem_t *find_cart_elem(cart_t *cart, char *name) {
+    ioopm_list_iterator_t *iter =
+        ioopm_list_iterator_create(cart->l);
+
+    while (!ioopm_list_iterator_at_end(iter))
+    {
+        cart_elem_t *curr = ioopm_list_iterator_current(iter).p;
+
+        if (strcmp(curr->name, name) == 0)
+        {
+            ioopm_list_iterator_destroy(iter);
+            return curr;
+        }
+        ioopm_list_iterator_advance(iter);
+    }
+    ioopm_list_iterator_destroy(iter);
+    return NULL;
+    
+}
+
+
+int db_cart_id(cart_t *cart)
+{
+    return cart->id;
+}
+
+int db_cart_cost(cart_t *cart)
+{
+    return cart->total_cost;
+}
+
+size_t db_cart_size(cart_t *cart)
+{
+    return ioopm_list_size(cart->l);
+}
+
+int db_cart_quantity(cart_t *cart, char *name)
+{
+    cart_elem_t *elem = find_cart_elem(cart, name);
+    if (elem) {
+        return elem->quant;
+    }
+    return 0;
+}
+
+void db_cart_apply(cart_t *cart, cart_row_fn *fn)
+{
+    ioopm_list_iterator_t *it = ioopm_list_iterator_create(cart->l);
+    while (!ioopm_list_iterator_at_end(it))
+    {
+        cart_elem_t *elem = ioopm_list_iterator_current(it).p;
+        fn(elem->name, elem->quant);
+        ioopm_list_iterator_advance(it);
+    }
+    ioopm_list_iterator_destroy(it);
+}
+
 
 /**
  * Tar bort en kundvagn och frigör dess lista.
@@ -447,26 +517,6 @@ void db_remove_cart(ioopm_hash_table_t *ht_n_i, cart_t *cart)
     ioopm_list_iterator_destroy(iter);
 
     db_destroy_cart(cart);
-}
-
-cart_elem_t *find_cart_elem(cart_t *cart, char *name) {
-    ioopm_list_iterator_t *iter =
-        ioopm_list_iterator_create(cart->l);
-
-    while (!ioopm_list_iterator_at_end(iter))
-    {
-        cart_elem_t *curr = ioopm_list_iterator_current(iter).p;
-
-        if (strcmp(curr->name, name) == 0)
-        {
-            ioopm_list_iterator_destroy(iter);
-            return curr;
-        }
-        ioopm_list_iterator_advance(iter);
-    }
-    ioopm_list_iterator_destroy(iter);
-    return NULL;
-    
 }
 
 db_status_t db_add_to_cart(cart_t *cart, item_t *item, int quant) {

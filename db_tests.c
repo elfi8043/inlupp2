@@ -397,11 +397,11 @@ void test_create_cart(void)
     cart_t *c1 = db_create_cart(&no_carts);
     cart_t *c2 = db_create_cart(&no_carts);
  
-    CU_ASSERT_EQUAL(c1->id, 1);
-    CU_ASSERT_EQUAL(c2->id, 2);
+    CU_ASSERT_EQUAL(db_cart_id(c1), 1);
+    CU_ASSERT_EQUAL(db_cart_id(c2), 2);
     CU_ASSERT_EQUAL(no_carts, 2);
-    CU_ASSERT_TRUE(ioopm_list_is_empty(c1->l));
-    CU_ASSERT_EQUAL(c1->total_cost, 0);
+    CU_ASSERT_EQUAL(db_cart_size(c1), 0);
+    CU_ASSERT_EQUAL(db_cart_cost(c1), 0);
  
     db_destroy_cart(c1);
     db_destroy_cart(c2);
@@ -420,15 +420,10 @@ void test_add_same_item_twice(void)
     db_add_to_cart(cart, item, 2);
     db_add_to_cart(cart, item, 3);
  
-    CU_ASSERT_EQUAL(ioopm_list_size(cart->l), 1);
-    cart_elem_t *elem = find_cart_elem(cart, "Runsten");
-    CU_ASSERT_PTR_NOT_NULL(elem);
-    if (elem)
-    {
-        CU_ASSERT_EQUAL(elem->quant, 5);
-    }
+    CU_ASSERT_EQUAL(db_cart_size(cart), 1);
+    CU_ASSERT_EQUAL(db_cart_quantity(cart, "Runsten"), 5);
     CU_ASSERT_EQUAL(item->total_reserved, 5);
-    CU_ASSERT_EQUAL(cart->total_cost, 5 * 50);
+    CU_ASSERT_EQUAL(db_cart_cost(cart), 5 * 50);
  
     db_remove_cart(ht_n_i, cart);
     db_ht_destroy(ht_n_i, ht_sl_n);
@@ -446,7 +441,7 @@ void test_add_to_cart_insufficient_stock(void)
     cart_t *cart = db_create_cart(&no_carts);
  
     CU_ASSERT_EQUAL(db_add_to_cart(cart, item, 6), DB_INSUFFICIENT_STOCK);
-    CU_ASSERT_TRUE(ioopm_list_is_empty(cart->l));
+    CU_ASSERT_EQUAL(db_cart_size(cart), 0);
     CU_ASSERT_EQUAL(item->total_reserved, 0);
  
     // Exakt hela lagret ska gå bra.

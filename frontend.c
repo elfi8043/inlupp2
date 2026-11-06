@@ -169,7 +169,7 @@ static void ui_create_cart(ioopm_list_t *carts, int *no_carts)
   puts("Create cart: ");
   cart_t *cart = db_create_cart(no_carts);
   ioopm_list_append(carts, ptr_elem(cart));
-  printf("Your cart id is %d", cart->id);
+  printf("Your cart id is %d", db_cart_id(cart));
 }
 
 static cart_t *get_cart(ioopm_list_t *carts, int id)
@@ -178,7 +178,7 @@ static cart_t *get_cart(ioopm_list_t *carts, int id)
   while (!ioopm_list_iterator_at_end(iter))
   {
     cart_t *curr = ioopm_list_iterator_current(iter).p;
-    if (curr->id == id)
+    if (db_cart_id(curr) == id)
     {
       ioopm_list_iterator_destroy(iter);
       return curr;
@@ -196,7 +196,7 @@ static void remove_cart(ioopm_list_t *carts, int id)
   while (!ioopm_list_iterator_at_end(iter))
   {
     cart_t *curr = ioopm_list_iterator_current(iter).p;
-    if (curr->id == id)
+    if (db_cart_id(curr) == id)
     {
       ioopm_list_iterator_remove(iter);
       break;
@@ -322,17 +322,14 @@ static void ui_show_stock(ioopm_hash_table_t *ht_n_i) {
   }
 }
 
-static void print_cart(cart_t *cart) {
-  ioopm_list_iterator_t *iter =
-        ioopm_list_iterator_create(cart->l);
+static void print_cart_row(char *name, int quant)
+{
+  printf("Name: %s\nQuantity: %d\n", name, quant);
+}
 
-    while (!ioopm_list_iterator_at_end(iter))
-    {
-        cart_elem_t *curr = ioopm_list_iterator_current(iter).p;
-        printf("Name: %s \n Quantaty: %d", curr->name, curr->quant);
-        ioopm_list_iterator_advance(iter);
-    }
-    ioopm_list_iterator_destroy(iter);
+static void print_cart(cart_t *cart)
+{
+  db_cart_apply(cart, print_cart_row);
 }
 
 static void ui_remove_from_cart(ioopm_hash_table_t *ht_n_i, ioopm_list_t *carts) {
@@ -386,7 +383,7 @@ static void ui_cart_cost(ioopm_list_t *carts) {
       }
     }
     else {
-      printf("Total cart cost: %d", cart->total_cost);
+      printf("Total cart cost: %d", db_cart_cost(cart));
       break;
     }
   }
