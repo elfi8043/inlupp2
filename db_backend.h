@@ -49,47 +49,85 @@ typedef struct cart cart_t;
 typedef void cart_row_fn(char *name, int quant);
 
 
-/// @brief creates an item
-/// @param name the name of the item
-/// @param desc a desription of the item
-/// @param price the price of the item in sek(?)
-/// @returns a pointer to the newly created item
+/**
+ * @brief Creates a new item.
+ * The strings are duplicated, and an empty stock list is created.
+ *
+ * @param name Name of the item.
+ * @param desc Description of the item.
+ * @param price Price of the item.
+ * @return Pointer to the newly created item.
+ */
 item_t *db_create_item(char *name, char *desc, int price);
 
-/// @brief adds new merch to the warehous
-/// @param ht_n_i a pointer to a ht mapping item name -> item*
-/// @param merch a pointer to the item to insert
+
+/**
+ * @brief Adds a new item to the warehouse.
+ * If an item with the same name already exists, the supplied item
+ * is destroyed.
+ *
+ * @param ht_n_i Hash table mapping item names to item pointers.
+ * @param merch Pointer to the item to insert.
+ * @return DB_OK if successful, DB_MERCH_EXISTS if an item with
+ *         the same name already exists.
+ */
 db_status_t db_add_merch(ioopm_hash_table_t *ht_n_i, item_t *merch);
 
+
+/**
+ * @brief Retrieves an item from the warehouse.
+ * Looks up an item by name and stores its pointer in result.
+ *
+ * @param ht_n_i Hash table mapping item names to item pointers.
+ * @param name Name of the item to retrieve.
+ * @param result Output parameter receiving the item pointer.
+ * @return DB_OK if the item was found, DB_NO_SUCH_MERCH otherwise.
+ */
 db_status_t db_get_item(ioopm_hash_table_t *ht_n_i, char *name, item_t **result);
 
-/// @brief removes an item from the warehouse entirely, including all its stock
-/// @param ht_n_i a pointer to a ht mapping item name -> item*
-/// @param ht_sl_n a pointer to ht mapping storage location-> name of stored item
-/// @param name name of the item to remove
-db_status_t db_remove_merch(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, char *name);
 
-/// @brief change name, desc. or price of a merch, 
-//         changing name of an existing merch not allowed
-/// @param ht_n_i a pointer to a ht mapping item name -> item*
-/// @param merch a pointer to a newly created merch item.
-/// @note this function should be used in conjunction with a function that 
-// creates an edited copy of an existing item, removes it and inserts a new one
-db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, char *old_name, char *name, char *desc, int price);
+/**
+ * @brief Removes an item from the warehouse.
+ * Removes the item from both hash tables, all its associated
+ * stock entries. The item's allocated memory is frerd.
+ * An item cannot be removed while it is reserved in a shopping cart.
+ *
+ * @param ht_n_i Hash table mapping item names to item pointers.
+ * @param ht_sl_n Hash table mapping storage locations to item names.
+ * @param name Name of the item to remove.
+ * @return DB_OK if successful, DB_NO_SUCH_MERCH if the item does not
+ *         exist, or DB_MERCH_IN_CART if the item is reserved in a cart.
+ */
+db_status_t db_remove_merch(ioopm_hash_table_t *ht_n_i,
+                            ioopm_hash_table_t *ht_sl_n,
+                            char *name);
 
-/// @brief increase the stock of a merch by at least one
-/// @param ht_n_i a pointer to a ht mapping item name -> item*
-/// @param ht_sl_n a pointer to ht mapping storage location -> name of stored item
-/// @param item a pointer to the item to increase
-/// @param quant the amount to increase quantity with
-/// @param sl the name of the storage location in which to store in
-/// @note we only replenish if the merch actually exists in the inventory
-db_status_t db_replenish(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n, char *name, int quant, char *sl);
 
-/// @brief creates an empty cart
-/// @param no_carts a pointer to a variable keeping track of how many carts there are
-/// @returns a pointer to the newly created cart
-cart_t *db_create_cart(int *no_carts); 
+/**
+ * @brief Edits an existing item's name, description and price.
+ *
+ * Creates a new replacement item for an existing item in order to edit it
+ * The old item is removed and the replacement is inserted
+ *
+ * Renaming is not permitted if another item already has the requested
+ * name, or if the item is currently reserved in a shopping cart.
+ *
+ * @param ht_n_i Hash table mapping item names to item pointers.
+ * @param ht_sl_n Hash table mapping storage locations to item names.
+ * @param old_name Current name of the item.
+ * @param name New name of the item.
+ * @param desc New description of the item.
+ * @param price New price of the item.
+ * @return DB_OK if successful, DB_NO_SUCH_MERCH if the original item
+ *         does not exist, DB_MERCH_EXISTS if the new name is already
+ *         taken, or DB_MERCH_IN_CART if renaming a reserved item.
+ */
+db_status_t db_edit_merch(ioopm_hash_table_t *ht_n_i,
+                          ioopm_hash_table_t *ht_sl_n,
+                          char *old_name,
+                          char *name,
+                          char *desc,
+                          int price);
 
 /// @brief Hämtar en kundvagns id
 int db_cart_id(cart_t *cart);
@@ -115,30 +153,84 @@ void db_destroy_cart(cart_t *cart);
 
 
 
-/// @brief destroys a carts memory and restores total_reserved in hash table
-/// @param cart poitner to the cart to remove
-/// @param ht_n_i a pointer to a ht mapping item name -> item*
+
+/**
+ * @brief Removes a shopping cart and releases its stock reservations.
+ * @param ht_n_i Hash table mapping item names to item pointers.
+ * @param cart Pointer to the cart to remove.
+ */
 void db_remove_cart(ioopm_hash_table_t *ht_n_i, cart_t *cart);
 
-/// @brief adds a quantity of an item to a cart
-/// @param cart shopping cart to add item to
-/// @param item item to add to shopping cart
-/// @param quant number of item to add
+
+/**
+ * @brief Adds an item and a specified quantity to a shopping cart.
+ * The item's reserved quantity and the cart's total cost are updated
+ *
+ * @param cart Cart to add the item to.
+ * @param item Pointer to the item to add.
+ * @param quant Quantity to add.
+ * @return DB_OK if successful, or DB_INSUFFICIENT_STOCK if there is
+ *         insufficient unreserved stock.
+ */
 db_status_t db_add_to_cart(cart_t *cart, item_t *item, int quant);
 
-/// @brief removes zero or more items of some merch from a cart
-/// @param cart cart to remove from
-/// @param item item to remove
-/// @param quant number to remove
-db_status_t db_remove_from_cart(ioopm_hash_table_t *ht_n_i, cart_t *cart, char *name, int quant);
 
-/// @brief calculates the total cost of the cart
-/// @param cart the cart to calculate for
+/**
+ * @brief Removes an item or part of its quantity from a shopping cart.
+ * Updates the item's reserved quantity and the cart's total cost.
+ * If the quantity reaches zero, the cart entry is removed.
+ * If stock quantity reaches zero the mapping in ht_sl_n is remove
+ * 
+ * @param ht_n_i Hash table mapping item names to item pointers.
+ * @param cart Cart to remove the item from.
+ * @param name Name of the item to remove.
+ * @param quant Quantity to remove.
+ * @return DB_OK if successful, DB_NOT_IN_CART if the item is not in
+ *         the cart, or DB_NO_SUCH_MERCH if the item does not exist.
+ */
+db_status_t db_remove_from_cart(ioopm_hash_table_t *ht_n_i,
+                                cart_t *cart,
+                                char *name,
+                                int quant);
+
+
+/**
+ * @brief Calculates the total cost of a shopping cart.
+ *
+ * @param cart Cart whose total cost is to be calculated.
+ * @return Total cost of all items in the cart.
+ */
 int db_calculate_cost(cart_t *cart);
 
-/// @brief decreases the stock of all items in the cart accoringly, removes cart from system
-/// @param cart the cart to checkout
-/// @param ht_sl_n a pointer to ht mapping storage location-> name of stored item
-int db_checkout(cart_t *cart, ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n);
 
-void db_ht_destroy(ioopm_hash_table_t *ht_n_i, ioopm_hash_table_t *ht_sl_n);
+/**
+ * @brief Checks out a shopping cart.
+ * Removes the purchased quantities from the warehouse stock, consuming
+ * stock from the item's storage locations until the requested quantity
+ * has been fulfilled.
+ *
+ * Updates the total stock and reserved quantities, removes emptied
+ * storage locations from the storage location hash table, and destroys
+ * the cart.
+ *
+ * @param cart Cart to check out.
+ * @param ht_n_i Hash table mapping item names to item pointers.
+ * @param ht_sl_n Hash table mapping storage locations to item names.
+ * @return Total cost of the completed purchase.
+ */
+int db_checkout(cart_t *cart,
+                ioopm_hash_table_t *ht_n_i,
+                ioopm_hash_table_t *ht_sl_n);
+
+
+/**
+ * @brief Destroys both warehouse hash tables and their contents.
+ *
+ * Frees all items, their associated stock entries, and all allocated
+ * keys and values in both hash tables. Finally destroys the hash tables.
+ *
+ * @param ht_n_i Hash table mapping item names to item pointers.
+ * @param ht_sl_n Hash table mapping storage locations to item names.
+ */
+void db_ht_destroy(ioopm_hash_table_t *ht_n_i,
+                   ioopm_hash_table_t *ht_sl_n);
