@@ -26,9 +26,11 @@ db_coverage: db_tests.c $(LIB)
 coverage: db_coverage
 	rm -f *.gcda
 	./db_coverage
-	gcovr --branches --filter db_backend.c
-	gcovr --html-details --branches --filter db_backend.c -o db_coverage.html
+	gcovr --filter db_backend.c
+	gcovr --txt-metric branch --filter db_backend.c
+	gcovr --html-details db_coverage.html --filter db_backend.c
 
 clean:
 	rm -f frontend db_tests db_coverage
 	rm -f *.gcda *.gcno *.gcov db_coverage*.html db_coverage*.css
+	rm -rf cov
