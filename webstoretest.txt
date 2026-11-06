@@ -16,12 +16,12 @@ L
 S
 CCZ
 P
-A01
 CCZ
+A01
 100
 P
-C95
 Glass
+C95
 50
 S
 Glass
@@ -47,8 +47,8 @@ CC
 Coca Cola
 9
 P
-A01
 CC
+A01
 25
 +
 2
@@ -62,5 +62,6 @@ S
 CC
 S
 Glass
+L
 Q
 Y
